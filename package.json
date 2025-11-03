@@ -1,0 +1,40 @@
+{
+  "name": "asas-system",
+  "version": "0.0.0",
+  "private": true,
+  "description": "<div align=\"center\"> <img width=\"1200\" height=\"475\" alt=\"GHBanner\" src=\"https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6\" /> </div>",
+  "license": "ISC",
+  "author": "",
+  "type": "module",
+  "main": "postcss.config.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@google/genai": "^1.22.0",
+    "@reduxjs/toolkit": "^2.9.1",
+    "@supabase/supabase-js": "^2.78.0",
+    "jspdf": "^3.0.3",
+    "jspdf-autotable": "^5.0.2",
+    "lovable-tagger": "^1.1.11",
+    "qrcode": "^1.5.3",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-redux": "^9.2.0",
+    "recharts": "^3.2.1",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.15",
+    "@types/node": "^22.14.0",
+    "@types/react": "^19.2.2",
+    "@vitejs/plugin-react": "^5.0.0",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.15",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.0"
+  }
+}

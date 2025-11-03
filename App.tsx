@@ -1,0 +1,1328 @@
+import React, { useEffect, useMemo, useState } from 'react';
+import Drawer from './components/Drawer';
+import Sidebar from './components/Sidebar';
+// FIX: Changed to a named import for Header as the module does not have a default export.
+import AIChatbot from './components/AIChatbot';
+import AIDailyBriefingModal from './components/AIDailyBriefingModal';
+import { Header } from './components/Header';
+import PermissionsViewModal from './components/PermissionsViewModal';
+import ProductModal from './components/ProductModal';
+import AdvanceRequestsPage from './pages/AdvanceRequestsPage';
+import Attendance from './pages/Attendance';
+import Branches from './pages/Branches';
+import ChartOfAccountsPage from './pages/ChartOfAccountsPage';
+import CreditNotes from './pages/CreditNotes';
+import CustomerPayments from './pages/CustomerPayments';
+import Customers from './pages/Customers';
+import Dashboard from './pages/Dashboard';
+import DebitNotes from './pages/DebitNotes';
+import EmployeePortal from './pages/EmployeePortal';
+import Employees from './pages/Employees';
+import Expenses from './pages/Expenses';
+import FinancialAccounts from './pages/FinancialAccounts';
+import GeneralRequestsPage from './pages/GeneralRequestsPage';
+import IntegrationsPage from './pages/IntegrationsPage';
+import InventoryRequisitions from './pages/InventoryRequisitions';
+import StockMovements from './pages/StockMovements';
+import InventoryTracking from './pages/InventoryTracking';
+import InventoryVouchers from './pages/InventoryVouchers';
+import JournalEntriesPage from './pages/JournalEntriesPage';
+import LeaveRequests from './pages/LeaveRequests';
+import Licenses from './pages/Licenses';
+import LoginScreen from './pages/LoginScreen';
+import ManufacturingOrderPage from './pages/ManufacturingOrderPage';
+import POS from './pages/POS';
+import POSSessions from './pages/POSSessions';
+import ProductDetailPage from './pages/ProductDetailPage';
+import ProductionTasks from './pages/ProductionTasks';
+import ProductsPage from './pages/ProductsPage';
+import PurchaseInvoices from './pages/PurchaseInvoices';
+import PurchaseOrders from './pages/PurchaseOrders';
+import PurchaseQuotations from './pages/PurchaseQuotations';
+import PurchaseRequests from './pages/PurchaseRequests';
+import PurchaseReturns from './pages/PurchaseReturns';
+import RecurringInvoices from './pages/RecurringInvoices';
+import Reports from './pages/Reports';
+import RequestForQuotations from './pages/RequestForQuotations';
+import Salaries from './pages/Salaries';
+import SalesInvoices from './pages/Sales';
+import SalesQuotations from './pages/SalesQuotations';
+import SalesReturns from './pages/SalesReturns';
+import Settings from './pages/Settings';
+import SettingsPurchases from './pages/SettingsPurchases';
+import SettingsSales from './pages/SettingsSales';
+import SettingsSuppliers from './pages/SettingsSuppliers';
+import SupplierPayments from './pages/SupplierPayments';
+import Suppliers from './pages/Suppliers';
+import SupplyChainPage from './pages/SupplyChainPage';
+import SupplyInventoryPage from './pages/SupplyInventoryPage';
+import SupplyMovementsPage from './pages/SupplyMovementsPage';
+import UsersPage from './pages/UsersPage';
+import { getDailyBriefing } from './services/geminiService';
+
+import { ToastProvider, useToasts } from './components/Toast';
+
+import { useAppDispatch, useAppSelector } from './src/store/hooks';
+import { createProduct, deleteProduct, fetchProducts, updateProduct } from './src/store/slices/productsSlice';
+import { mockProducts, mockCustomers, mockBranches, mockInventory } from './data/mockData';
+import { Account, AdjustmentReason, AdvanceRequest, AttendanceRecord, Branch, ChatbotDataContext, CreditNote, Customer, CustomerPayment, DailyBriefingContext, DebitNote, EmployeeData, Expense, FinancialAccount, GeneralRequest, IntegrationSettings, InventoryAdjustmentLog, InventoryItem, InventoryRequisition, InventoryVoucher, JournalVoucher, LeaveRequest, ManufacturingOrder, POSSession, Product, ProductionTask, PurchaseInvoice, PurchaseOrder, PurchaseQuotation, PurchaseRequest, PurchaseReturn, PurchaseSettings, RecurringInvoice, RenewableItem, RequestForQuotation, RequestStatus, Role, SalaryPayment, Sale, SalesQuotation, SalesReturn, Supplier, SupplierPayment, User } from './types';
+// src/types/app.ts
+
+const defaultIntegrationSettings: IntegrationSettings = {
+    openCart: {
+        isEnabled: false,
+        apiUrl: '',
+        apiKey: '',
+        apiSecret: '',
+        autoSyncCustomers: false,
+        autoSyncSales: false,
+        syncInterval: 60,
+    },
+    wooCommerce: {
+        isEnabled: false,
+        apiUrl: '',
+        apiKey: '',
+        apiSecret: '',
+        autoSyncCustomers: false,
+        autoSyncSales: false,
+        syncInterval: 60,
+    },
+    myFatoorah: {
+        isEnabled: false,
+        apiKey: '',
+    },
+    whatsapp: {
+        isEnabled: false,
+        apiKey: '',
+        phoneNumberId: '',
+    },
+    n8n: {
+        isEnabled: false,
+        webhooks: [],
+    },
+};
+
+const defaultPurchaseSettings: PurchaseSettings = {
+    defaultPaymentTermsDays: 30,
+    defaultShippingPreference: 'Collect',
+    isApprovalWorkflowEnabled: false,
+    approvalTiers: [],
+};
+
+export const AuthContext = React.createContext<{ user: User | null; login: (role: Role) => void; logout: () => void; }>({
+    user: null,
+    login: () => {},
+    logout: () => {},
+});
+
+type Theme = 'light' | 'dark';
+
+const AppContent: React.FC = () => {
+    const { addToast } = useToasts();
+    const dispatch = useAppDispatch();
+    const productsFromStore = useAppSelector(s => s.products.items);
+    const [user, setUser] = useState<User | null>(null);
+    const [activeView, setActiveView] = useState('Dashboard');
+    const [theme, setTheme] = useState<Theme>('dark');
+
+        // Navigation state
+        const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+        const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+    // Centralized Data State
+    const [users, setUsers] = useState<User[]>([]);
+    const [purchaseInvoices, setPurchaseInvoices] = useState<PurchaseInvoice[]>([]);
+    const [sales, setSales] = useState<Sale[]>([]);
+    const [employees, setEmployees] = useState<EmployeeData[]>([]);
+    const [renewables, setRenewables] = useState<RenewableItem[]>([]);
+    const [branches, setBranches] = useState<Branch[]>(mockBranches);
+    const [products, setProducts] = useState<Product[]>(mockProducts);
+    const [inventory, setInventory] = useState<InventoryItem[]>([]);
+    const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
+    const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
+    const [salaryPayments, setSalaryPayments] = useState<SalaryPayment[]>([]);
+    const [customers, setCustomers] = useState<Customer[]>(mockCustomers);
+    const [expenses, setExpenses] = useState<Expense[]>([]);
+    const [financialAccounts, setFinancialAccounts] = useState<FinancialAccount[]>([]);
+    const [chartOfAccounts, setChartOfAccounts] = useState<Account[]>([]);
+    const [journalVouchers, setJournalVouchers] = useState<JournalVoucher[]>([]);
+    const [settings, setSettings] = useState({ 
+        salesTarget: 50000,
+        renewalReminders: { days: [30, 15, 7, 3] } 
+    });
+    const [posSessions, setPosSessions] = useState<POSSession[]>([]);
+    const [productionOrders, setProductionOrders] = useState<ManufacturingOrder[]>([]);
+    const [inventoryAdjustmentLogs, setInventoryAdjustmentLogs] = useState<InventoryAdjustmentLog[]>([]);
+    const [productionTasks, setProductionTasks] = useState<ProductionTask[]>([]);
+    const [integrationSettings, setIntegrationSettings] = useState<IntegrationSettings>(defaultIntegrationSettings);
+    const [advanceRequests, setAdvanceRequests] = useState<AdvanceRequest[]>([]);
+    const [generalRequests, setGeneralRequests] = useState<GeneralRequest[]>([]);
+    const [editingProduct, setEditingProduct] = useState<Partial<Product> | null>(null);
+    const [viewingPermissionsFor, setViewingPermissionsFor] = useState<User | null>(null);
+    const [isBriefingOpen, setIsBriefingOpen] = useState(false);
+    const [briefingContent, setBriefingContent] = useState<string | null>(null);
+    const [isBriefingLoading, setIsBriefingLoading] = useState(false);
+
+    // Purchase Module State
+    const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+    const [purchaseRequests, setPurchaseRequests] = useState<PurchaseRequest[]>([]);
+    const [rfqs, setRfqs] = useState<RequestForQuotation[]>([]);
+    const [purchaseQuotations, setPurchaseQuotations] = useState<PurchaseQuotation[]>([]);
+    const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
+    const [purchaseReturns, setPurchaseReturns] = useState<PurchaseReturn[]>([]);
+    const [debitNotes, setDebitNotes] = useState<DebitNote[]>([]);
+    const [supplierPayments, setSupplierPayments] = useState<SupplierPayment[]>([]);
+    const [purchaseSettings, setPurchaseSettings] = useState<PurchaseSettings>(defaultPurchaseSettings);
+    
+    // Sales Module State
+    const [salesQuotations, setSalesQuotations] = useState<SalesQuotation[]>([]);
+    const [salesReturns, setSalesReturns] = useState<SalesReturn[]>([]);
+    const [creditNotes, setCreditNotes] = useState<CreditNote[]>([]);
+    const [recurringInvoices, setRecurringInvoices] = useState<RecurringInvoice[]>([]);
+    const [customerPayments, setCustomerPayments] = useState<CustomerPayment[]>([]);
+
+    // New Inventory State
+    const [inventoryVouchers, setInventoryVouchers] = useState<InventoryVoucher[]>([]);
+    const [inventoryRequisitions, setInventoryRequisitions] = useState<InventoryRequisition[]>([]);
+
+    // Add function to check if user is super admin - moved to correct position to fix hook order
+    const isSuperAdmin = useMemo(() => {
+        return user?.role === Role.SuperAdmin;
+    }, [user]);
+
+    const activeSession = useMemo(() => posSessions.find(s => s.status === 'Open' && s.branchId === user?.branchId), [posSessions, user]);
+    
+     useEffect(() => {
+        document.documentElement.setAttribute('data-theme', theme);
+    }, [theme]);
+
+    useEffect(() => {
+        // Ensure products are loaded from API when the app mounts
+        dispatch(fetchProducts());
+        
+        // Load inventory data from API
+        const loadInventory = async () => {
+            try {
+                const response = await fetch('/api/inventory');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (Array.isArray(data) && data.length > 0) {
+                        setInventory(data);
+                    } else {
+                        // If no data, use mock data as fallback
+                        setInventory(mockInventory);
+                    }
+                } else {
+                    console.warn('Failed to fetch inventory, using mock data');
+                    setInventory(mockInventory);
+                }
+            } catch (error) {
+                console.error('Error fetching inventory:', error);
+                setInventory(mockInventory);
+            }
+        };
+        
+        loadInventory();
+    }, [dispatch]);
+
+    useEffect(() => {
+        const handleMouseMove = (e: MouseEvent) => {
+            document.documentElement.style.setProperty('--mouse-x', `${e.clientX}px`);
+            document.documentElement.style.setProperty('--mouse-y', `${e.clientY}px`);
+        };
+        
+        document.addEventListener('mousemove', handleMouseMove);
+        
+        return () => {
+            document.removeEventListener('mousemove', handleMouseMove);
+        }
+    }, []);
+
+    const authContextValue = useMemo(() => ({
+        user,
+        login: (role: Role) => {
+            let loggedInUser = users.find(u => u.role === role);
+            if (!loggedInUser) {
+                // Create a lightweight demo user when none exists so login always works
+                loggedInUser = {
+                    id: String(Date.now()),
+                    name: `${role} Demo`,
+                    role,
+                    permissions: [],
+                    branchId: '1',
+                } as User;
+                setUsers(prev => [...prev, loggedInUser!]);
+            }
+
+            setUser(loggedInUser);
+            switch (role) {
+                case Role.ShopAssistant:
+                    setActiveView('POS/Start');
+                    break;
+                case Role.Perfumer:
+                    setActiveView('Manufacturing/Orders');
+                    break;
+                case Role.Employee:
+                    setActiveView('MyProfile');
+                    break;
+                default:
+                    setActiveView('Dashboard');
+                    break;
+            }
+        },
+        logout: () => {
+            setUser(null);
+        }
+    }), [user, users]);
+    
+    useEffect(() => {
+        if (user) { 
+            checkAndSendRenewalReminders();
+            const interval = setInterval(() => {
+                checkAndSendRenewalReminders();
+            }, 60 * 1000 * 5); 
+            return () => clearInterval(interval);
+        }
+    }, [user, renewables, settings.renewalReminders.days]);
+
+
+    const checkAndSendRenewalReminders = (): boolean => {
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        let remindersSentInSession = false;
+        const reminderDays = settings.renewalReminders.days.sort((a, b) => b - a);
+        
+        const updatedRenewables = renewables.map(item => {
+            const expiry = new Date(item.expiryDate);
+            const diffTime = expiry.getTime() - today.getTime();
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            
+            let newRemindersSent = {...(item.remindersSent || {})};
+            let reminderTriggered = false;
+
+            // Only check for reminders if the item has not expired yet
+            if (diffDays >= 0) {
+                for (const day of reminderDays) {
+                    if (diffDays <= day && !newRemindersSent[day]) {
+                        addToast(`تنبيه: "${item.name}" ينتهي خلال ${day} يوم أو أقل.`, 'info');
+                        newRemindersSent[day] = true;
+                        reminderTriggered = true;
+                        break; // Send only the most urgent, unmet reminder for this item per check
+                    }
+                }
+            }
+
+            if (reminderTriggered) {
+                remindersSentInSession = true;
+                return { ...item, remindersSent: newRemindersSent };
+            }
+            return item;
+        });
+
+        if (remindersSentInSession) {
+            setRenewables(updatedRenewables);
+        }
+        return remindersSentInSession;
+    };
+
+
+    const handleGenerateBriefing = async () => {
+        setIsBriefingLoading(true);
+        setIsBriefingOpen(true);
+
+        const today = new Date();
+        const yesterday = new Date(today);
+        yesterday.setDate(today.getDate() - 1);
+        const yesterdayStr = yesterday.toISOString().split('T')[0];
+        
+        const yesterdaySales = sales.filter(s => s.date === yesterdayStr);
+        const yesterdaySalesTotal = yesterdaySales.reduce((sum, s) => sum + s.totalAmount, 0);
+        const yesterdayInvoiceCount = yesterdaySales.length;
+
+        const topProductsData = yesterdaySales.flatMap(s => s.items).reduce((acc: {[key: string]: { name: string; quantity: number; revenue: number; }}, item) => {
+            if (!acc[item.productId]) {
+                acc[item.productId] = { name: item.productName, quantity: 0, revenue: 0 };
+            }
+            acc[item.productId].quantity += item.quantity;
+            acc[item.productId].revenue += item.total;
+            return acc;
+        }, {} as {[key: string]: { name: string; quantity: number; revenue: number; }});
+        
+        const topSellingProducts = (Object.values(topProductsData) as { name: string; quantity: number; revenue: number; }[])
+            .sort((a, b) => b.revenue - a.revenue)
+            .slice(0, 3);
+            
+        const currentLowStockItems = inventory.filter(i => i.currentStock <= i.minimumStock && i.minimumStock > 0);
+        const criticalLowStockItems = currentLowStockItems.map(item => {
+            const product = products.find(p => String(p.id) === String(item.id));
+            return {
+                name: product?.name || item.name || 'Unknown',
+                quantity: item.currentStock,
+                minStock: item.minimumStock,
+            }
+        }).slice(0, 3);
+        
+        const pendingHRRequests = [
+            ...leaveRequests.filter(r => r.status === 'Pending'),
+            ...advanceRequests.filter(r => r.status === 'Pending'),
+            ...generalRequests.filter(r => r.status === 'Pending')
+        ].length;
+        
+        const upcomingRenewals = renewables.map(item => {
+            const expiry = new Date(item.expiryDate);
+            const diffTime = expiry.getTime() - today.getTime();
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            return { ...item, daysUntilExpiry: diffDays };
+        }).filter(item => item.daysUntilExpiry >= 0 && item.daysUntilExpiry <= 30)
+          .sort((a,b) => a.daysUntilExpiry - b.daysUntilExpiry)
+          .slice(0, 3)
+          .map(item => ({ name: item.name, daysUntilExpiry: item.daysUntilExpiry }));
+
+        const context: DailyBriefingContext = {
+            today: today.toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
+            yesterdaySalesTotal,
+            yesterdayInvoiceCount,
+            topSellingProducts,
+            lowStockItemsCount: currentLowStockItems.length,
+            criticalLowStockItems,
+            pendingHRRequests,
+            upcomingRenewals,
+        };
+
+        try {
+            const result = await getDailyBriefing(context);
+            setBriefingContent(result);
+        } catch (error) {
+            console.error(error);
+            addToast('فشل في إنشاء الموجز اليومي.', 'error');
+            setIsBriefingOpen(false); 
+        } finally {
+            setIsBriefingLoading(false);
+        }
+    };
+
+
+    // CRUD Handlers
+    const handleSaveUser = (userToSave: User) => {
+        setUsers(prev => {
+            const exists = prev.some(u => u.id === userToSave.id);
+            if (exists) {
+                return prev.map(u => u.id === userToSave.id ? userToSave : u);
+            }
+            const newUser = { ...userToSave, id: String(Date.now()) };
+            return [...prev, newUser];
+        });
+    };
+
+    const handleOpenProductModal = (product: Partial<Product>) => {
+        setEditingProduct(product);
+    };
+
+    const handleCloseProductModal = () => {
+        setEditingProduct(null);
+    };
+
+    const handleSaveProduct = (productToSave: Product) => {
+        setProducts(prev => {
+            const exists = prev.some(p => p.id === productToSave.id);
+            if (exists) {
+                return prev.map(p => p.id === productToSave.id ? productToSave : p);
+            }
+            const newProduct = { ...productToSave, id: Date.now() };
+            return [...prev, newProduct];
+        });
+    };
+
+    const handleSaveAndCloseProductModal = (productToSave: Product) => {
+        const hasId = (productToSave as any)._id || productToSave.id;
+        const idForApi = String((productToSave as any)._id || productToSave.id || '');
+        const payload: Partial<Product> = { ...productToSave };
+        if ((payload as any)._id) delete (payload as any)._id;
+        if (hasId) {
+            dispatch(updateProduct({ id: idForApi, data: payload }))
+                .unwrap()
+                .then(() => {
+                    addToast('تم تحديث المنتج بنجاح!', 'success');
+                    handleCloseProductModal();
+                    dispatch(fetchProducts());
+                })
+                .catch(() => addToast('فشل تحديث المنتج', 'error'));
+        } else {
+            dispatch(createProduct(payload))
+                .unwrap()
+                .then(() => {
+                    addToast('تم إضافة المنتج بنجاح!', 'success');
+                    handleCloseProductModal();
+                    dispatch(fetchProducts());
+                })
+                .catch(() => addToast('فشل إضافة المنتج', 'error'));
+        }
+    };
+
+    const handleSavePurchaseInvoice = (invoice: PurchaseInvoice) => {
+        setPurchaseInvoices(prev => {
+            const exists = prev.some(p => p.id === invoice.id);
+            if (exists) {
+                return prev.map(p => p.id === invoice.id ? invoice : p);
+            }
+            const newInvoice = { ...invoice, id: String(Date.now()) };
+            setInventory(prevInv => {
+                const newInv = [...prevInv];
+                newInvoice.items.forEach(item => {
+                    const invIndex = newInv.findIndex(i => Number(i.branchId) === Number(newInvoice.branchId) && Number(i.id) === Number(item.productId));
+                    if (invIndex > -1) {
+                        newInv[invIndex].currentStock += item.quantity;
+                    } else {
+                        const product = products.find(p => String(p.id) === String(item.productId));
+                        const newInvItem: InventoryItem = {
+                            id: Date.now(),
+                            name: product?.name || 'Unknown',
+                            type: 'Product',
+                            currentStock: item.quantity,
+                            minimumStock: 0,
+                            unit: product?.baseUnit || 'pcs',
+                            costPerUnit: item.unitPrice,
+                            locked: false,
+                            branchId: Number(newInvoice.branchId),
+                            productId: Number(item.productId),
+                        };
+                        if (product?.hasExpiryDate) {
+                            const expiry = new Date();
+                            expiry.setFullYear(expiry.getFullYear() + 1);
+                            newInvItem.expiryDate = expiry.toISOString().split('T')[0];
+                        }
+                        newInv.push(newInvItem);
+                    }
+                });
+                return newInv;
+            });
+            return [...prev, newInvoice];
+        });
+    };
+
+    const handleSavePurchaseRequest = (request: PurchaseRequest) => {
+        setPurchaseRequests(prev => {
+            const exists = prev.some(r => r.id === request.id);
+            if (exists) return prev.map(r => (r.id === request.id ? request : r));
+            const newRequest = { ...request, id: String(Date.now()) };
+            return [...prev, newRequest];
+        });
+    };
+
+    const handleSaveRfq = (rfq: RequestForQuotation) => {
+        setRfqs(prev => {
+            const exists = prev.some(r => r.id === rfq.id);
+            if (exists) return prev.map(r => (r.id === rfq.id ? rfq : r));
+            const newRfq = { ...rfq, id: String(Date.now()) };
+            return [...prev, newRfq];
+        });
+    };
+
+    const handleSavePurchaseQuotation = (quotation: PurchaseQuotation) => {
+        setPurchaseQuotations(prev => {
+            const exists = prev.some(q => q.id === quotation.id);
+            if (exists) return prev.map(q => (q.id === quotation.id ? quotation : q));
+            const newQuotation = { ...quotation, id: String(Date.now()) };
+            return [...prev, newQuotation];
+        });
+    };
+    
+    const handleSavePurchaseOrder = (order: PurchaseOrder) => {
+        setPurchaseOrders(prev => {
+            const exists = prev.some(o => o.id === order.id);
+            if (exists) return prev.map(o => (o.id === order.id ? order : o));
+            const newOrder = { ...order, id: String(Date.now()) };
+            return [...prev, newOrder];
+        });
+    };
+    
+    const handleSavePurchaseReturn = (pr: PurchaseReturn) => {
+        setPurchaseReturns(prev => {
+            const exists = prev.some(p => p.id === pr.id);
+            if (exists) return prev.map(p => (p.id === pr.id ? pr : p));
+            return [...prev, { ...pr, id: String(Date.now()) }];
+        });
+    };
+
+    const handleSaveDebitNote = (dn: DebitNote) => {
+        setDebitNotes(prev => {
+            const exists = prev.some(d => d.id === dn.id);
+            if (exists) return prev.map(d => (d.id === dn.id ? dn : d));
+            return [...prev, { ...dn, id: String(Date.now()) }];
+        });
+    };
+
+    const handleSaveInventoryRequisition = (req: InventoryRequisition) => {
+        setInventoryRequisitions(prev => {
+             const exists = prev.some(r => r.id === req.id);
+            if (exists) return prev.map(r => (r.id === req.id ? req : r));
+            const newReq = { ...req, id: String(Date.now()).slice(-6) };
+            return [...prev, newReq];
+        })
+    }
+    
+    const handleSaveSale = (sale: Sale) => {
+        setSales(prev => {
+            const exists = prev.some(s => s.id === sale.id);
+            if (exists) {
+                return prev.map(s => s.id === sale.id ? sale : s);
+            }
+
+            const newSale = { ...sale, id: String(Date.now()), invoiceNumber: `INV-${sale.brand === 'Arabiva' ? 'A' : 'G'}-${Date.now()}` };
+
+            if (activeSession) {
+                newSale.sessionId = activeSession.id;
+                setPosSessions(prevSessions => prevSessions.map(s =>
+                    s.id === activeSession.id
+                    ? { ...s, salesIds: [...s.salesIds, newSale.id] }
+                    : s
+                ));
+            }
+
+            setInventory(prevInv => {
+                const newInv = [...prevInv];
+                newSale.items.forEach(item => {
+                    const productDetails = products.find(p => p.id === item.productId);
+
+                    if (productDetails?.components && productDetails.components.length > 0) {
+                        // Composite product: deduct components from inventory
+                        productDetails.components.forEach(component => {
+                            const invIndex = newInv.findIndex(i => Number(i.branchId) === Number(newSale.branchId) && Number(i.productId || i.id) === Number(component.productId));
+                            if (invIndex > -1) {
+                                newInv[invIndex].quantity -= component.quantity * item.quantity;
+                            }
+                        });
+                    } else {
+                        // Simple product: deduct item itself from inventory
+                        const invIndex = newInv.findIndex(i => Number(i.branchId) === Number(newSale.branchId) && Number(i.productId || i.id) === Number(item.productId));
+                        if (invIndex > -1) {
+                            newInv[invIndex].quantity -= item.quantity;
+                        }
+                    }
+                });
+                return newInv;
+            });
+            return [...prev, newSale];
+        });
+    };
+
+    const handleSaveSalesQuotation = (quotation: SalesQuotation) => {
+        setSalesQuotations(prev => {
+            const exists = prev.some(q => q.id === quotation.id);
+            if (exists) {
+                return prev.map(q => (q.id === quotation.id ? quotation : q));
+            }
+            const newQuote = { ...quotation, id: String(Date.now()), quoteNumber: `QT-${Date.now()}` };
+            return [...prev, newQuote];
+        });
+    };
+
+    const handleConvertQuoteToInvoice = (quotation: SalesQuotation) => {
+        const customer = customers.find(c => c.id === quotation.customerId);
+        if (!customer || !user?.branchId) {
+            addToast('Customer not found or user has no branch.', 'error');
+            return;
+        }
+
+        const customerId = typeof customer.id === 'number' ? customer.id : customer.id ? Number(customer.id) : undefined;
+
+        const newSale: Omit<Sale, 'id' | 'invoiceNumber'> = {
+            brand: 'Arabiva', // Or determine dynamically
+            branchId: user.branchId,
+            customerName: customer.name,
+            customerId: customerId ? String(customerId) : undefined,
+            date: new Date().toISOString().split('T')[0],
+            paymentMethod: 'Credit',
+            paymentStatus: 'Pending',
+            items: quotation.items.map(item => ({...item, id: Date.now() + Math.random() })),
+            totalAmount: quotation.totalAmount,
+            quotationId: quotation.id,
+        };
+        handleSaveSale(newSale as Sale);
+        setSalesQuotations(prev => prev.map(q => q.id === quotation.id ? { ...q, status: 'Accepted' } : q));
+        addToast(`تم تحويل عرض السعر #${quotation.quoteNumber} إلى فاتورة.`, 'success');
+    };
+
+    const handleSaveEmployee = (employee: EmployeeData) => {
+        setEmployees(prev => {
+            const exists = prev.some(e => e.id === employee.id);
+            return exists ? prev.map(e => e.id === employee.id ? employee : e) : [...prev, { ...employee, id: Date.now() }];
+        })
+    }
+    
+    const handleDeleteEmployee = (employeeId: number) => {
+        setEmployees(prev => prev.filter(e => e.id !== employeeId));
+    }
+
+    
+    const handleSaveSupplier = (supplier: Supplier) => {
+         setSuppliers(prev => {
+            const exists = prev.some(s => s.id === supplier.id);
+            return exists ? prev.map(s => s.id === supplier.id ? supplier : s) : [...prev, { ...supplier, id: Date.now() }];
+        })
+    }
+
+    const handleUpdateInventoryItem = (updatedItem: InventoryItem) => {
+        setInventory(prev => prev.map(item => 
+            (item.branchId === updatedItem.branchId && item.productId === updatedItem.productId)
+            ? updatedItem
+            : item
+        ));
+    }
+    
+    const handleTransferInventory = (data: { sourceBranchId: number; destinationBranchId: number; productId: number; quantity: number; }) => {
+        const { sourceBranchId, destinationBranchId, productId, quantity } = data;
+        
+        setInventory(prevInv => {
+            const newInv = [...prevInv];
+            let transactionSuccess = true;
+    
+            // 1. Deduct from source
+            const sourceIndex = newInv.findIndex(i => Number(i.branchId) === sourceBranchId && Number(i.productId || i.id) === productId);
+            if (sourceIndex > -1 && newInv[sourceIndex].quantity >= quantity) {
+                newInv[sourceIndex] = { ...newInv[sourceIndex], quantity: newInv[sourceIndex].quantity - quantity };
+            } else {
+                addToast('Source branch has insufficient stock for transfer.', 'error');
+                transactionSuccess = false;
+            }
+    
+            if (!transactionSuccess) {
+                return prevInv; // Abort if deduction failed
+            }
+            
+            // 2. Add to destination
+            const destinationIndex = newInv.findIndex(i => Number(i.branchId) === destinationBranchId && Number(i.productId || i.id) === productId);
+            if (destinationIndex > -1) {
+                 newInv[destinationIndex] = { ...newInv[destinationIndex], quantity: newInv[destinationIndex].quantity + quantity };
+            } else {
+                // If item doesn't exist in destination, create it
+                const sourceItem = prevInv.find(i => Number(i.branchId) === sourceBranchId && Number(i.productId || i.id) === productId);
+                const newInvItem: InventoryItem = {
+                    id: Date.now(),
+                    name: 'Transferred Item',
+                    type: 'Product',
+                    currentStock: quantity,
+                    minimumStock: sourceItem?.minimumStock || 0,
+                    unit: 'pcs',
+                    costPerUnit: 0,
+                    locked: false,
+                    branchId: destinationBranchId,
+                    productId: productId,
+                    quantity: quantity,
+                    minStock: sourceItem?.minStock || 0,
+                    expiryDate: sourceItem?.expiryDate,
+                };
+                newInv.push(newInvItem);
+            }
+            addToast('تم تحويل المخزون بنجاح!', 'success');
+            return newInv;
+        });
+    };
+
+    const handleAdjustInventory = (data: { branchId: number; productId: number; newQuantity: number; reason: AdjustmentReason; notes?: string; }) => {
+        const { branchId, productId, newQuantity, reason, notes } = data;
+
+        let oldQuantity = 0;
+        const inventoryItem = inventory.find(i => Number(i.branchId) === branchId && Number(i.productId || i.id) === productId);
+        if (inventoryItem) {
+            oldQuantity = inventoryItem.quantity;
+        } else if (reason === 'Initial Stock') {
+            oldQuantity = 0;
+        }
+        else {
+            addToast('Product not found in branch inventory.', 'error');
+            return;
+        }
+
+        // Create log entry
+        const newLogEntry: InventoryAdjustmentLog = {
+            id: Date.now(),
+            date: new Date().toISOString(),
+            branchId,
+            productId,
+            adjustedByUserId: user?.id || 0,
+            oldQuantity,
+            newQuantity,
+            reason,
+            notes,
+        };
+
+        setInventoryAdjustmentLogs(prev => [...prev, newLogEntry]);
+
+        // Update inventory state
+        setInventory(prev => {
+            const itemIndex = prev.findIndex(item => Number(item.branchId) === branchId && Number(item.productId || item.id) === productId);
+            if (itemIndex > -1) {
+                const newInv = [...prev];
+                newInv[itemIndex] = { ...newInv[itemIndex], quantity: newQuantity };
+                return newInv;
+            } else {
+                const product = products.find(p => p.id === productId);
+                const newInvItem: InventoryItem = {
+                    id: Date.now(),
+                    name: product?.name || 'Adjusted Item',
+                    type: 'Product',
+                    currentStock: newQuantity,
+                    minimumStock: 0,
+                    unit: product?.baseUnit || 'pcs',
+                    costPerUnit: 0,
+                    locked: false,
+                    branchId,
+                    productId,
+                    quantity: newQuantity,
+                    minStock: 0
+                };
+                if (product?.hasExpiryDate) {
+                    const expiry = new Date();
+                    expiry.setFullYear(expiry.getFullYear() + 1);
+                    newInvItem.expiryDate = expiry.toISOString().split('T')[0];
+                }
+                return [...prev, newInvItem];
+            }
+        });
+        
+        addToast('Inventory adjusted successfully!', 'success');
+    };
+
+    const handleRecordAttendance = (records: AttendanceRecord[]) => {
+        setAttendance(prev => {
+            const newRecords = [...prev];
+            records.forEach(record => {
+                const index = newRecords.findIndex(r => r.date === record.date && r.employeeId === record.employeeId);
+                if (index > -1) {
+                    newRecords[index] = record;
+                } else {
+                    newRecords.push({ ...record, id: Date.now() });
+                }
+            });
+            return newRecords;
+        });
+        addToast('Attendance recorded!', 'success');
+    };
+    
+    const handleSaveLeaveRequest = (request: LeaveRequest, newStatus?: RequestStatus) => {
+        setLeaveRequests(prev => {
+            const exists = prev.some(r => r.id === request.id);
+            if (exists) {
+                return prev.map(r => r.id === request.id ? { ...r, status: newStatus || r.status } : r);
+            }
+            return [...prev, { ...request, id: Date.now(), status: 'Pending' }];
+        });
+    };
+
+    const handleSaveAdvanceRequest = (request: AdvanceRequest, newStatus?: RequestStatus) => {
+        setAdvanceRequests(prev => {
+            const exists = prev.some(r => r.id === request.id);
+            if (exists) {
+                return prev.map(r => r.id === request.id ? { ...r, status: newStatus || r.status } : r);
+            }
+            return [...prev, { ...request, id: Date.now(), status: 'Pending' }];
+        });
+    };
+
+    const handleSaveGeneralRequest = (request: GeneralRequest, newStatus?: RequestStatus) => {
+        setGeneralRequests(prev => {
+            const exists = prev.some(r => r.id === request.id);
+            if (exists) {
+                return prev.map(r => r.id === request.id ? { ...r, status: newStatus || r.status } : r);
+            }
+            return [...prev, { ...request, id: Date.now(), status: 'Pending' }];
+        });
+    };
+    
+    const handleRunPayroll = (year: number, month: number) => {
+        const newPayments: SalaryPayment[] = employees.map(emp => {
+            const id = `${emp.id}-${month}-${year}`;
+            
+            // Calculate deductions
+            const monthAttendance = attendance.filter(a => {
+                const aDate = new Date(a.date);
+                return String(a.employeeId) === String(emp.id) && aDate.getFullYear() === year && aDate.getMonth() === month - 1;
+            });
+            
+            const unpaidLeave = leaveRequests.filter(r => {
+                const rDate = new Date(r.startDate);
+                return String(r.employeeId) === String(emp.id) && r.status === 'Approved' && r.leaveType === 'Unpaid' && rDate.getFullYear() === year && rDate.getMonth() === month -1;
+            }).reduce((sum, r) => sum + r.totalDays, 0);
+
+            const lateMinutes = monthAttendance.reduce((sum, a) => sum + (a.lateMinutes || 0), 0);
+            const absentDays = monthAttendance.filter(a => a.status === 'Absent').length;
+            
+            const salaryPerDay = emp.salary / 30;
+            const salaryPerHour = salaryPerDay / 8;
+            
+            const deductions = {
+                advances: emp.advances,
+                lateness: Math.floor(lateMinutes / 30) * salaryPerHour,
+                absence: absentDays * salaryPerDay,
+                unpaidLeave: unpaidLeave * salaryPerDay,
+                total: 0
+            };
+            deductions.total = deductions.advances + deductions.lateness + deductions.absence + deductions.unpaidLeave;
+            
+            const grossSalary = emp.salary + emp.allowances;
+            const netSalary = grossSalary - deductions.total;
+
+            const payment: SalaryPayment = {
+                id,
+                employeeId: String(emp.id),
+                month,
+                year,
+                basicSalary: emp.salary,
+                allowances: emp.allowances,
+                grossSalary,
+                deductions,
+                netSalary,
+                paidDate: new Date().toISOString().split('T')[0],
+                journalEntries: [
+                    { account: 'مصروف الرواتب', debit: grossSalary, credit: 0 },
+                    { account: 'ذمم السلف', debit: 0, credit: deductions.advances },
+                    { account: 'الرواتب المستحقة', debit: 0, credit: netSalary },
+                ]
+            };
+            return payment;
+        });
+        
+        setSalaryPayments(newPayments);
+        addToast(`Payroll for ${month}/${year} completed!`, 'success');
+    };
+
+    const handleSaveCustomer = (customer: Customer): Customer => {
+        let savedCustomer = customer;
+        setCustomers(prev => {
+            const exists = prev.some(c => c.id === customer.id);
+            if (exists) {
+                const updated = prev.map(c => {
+                    if (c.id === customer.id) {
+                        savedCustomer = customer;
+                        return customer;
+                    }
+                    return c;
+                });
+                return updated;
+            }
+            const newCustomer = { 
+                ...customer, 
+                id: Date.now(),
+                addedBy: user?.name || 'System'
+            };
+            savedCustomer = newCustomer;
+            return [...prev, newCustomer];
+        });
+        return savedCustomer;
+    };
+    
+    const handleSaveExpense = (expense: Expense) => {
+        const originalExpense = expenses.find(e => e.id === expense.id);
+        const isNew = !originalExpense;
+
+        setFinancialAccounts(prev => prev.map(acc => {
+            let newBalance = acc.balance;
+            if (isNew) {
+                if (acc.id === expense.paidFromAccountId) {
+                    newBalance -= expense.amount;
+                }
+            } else {
+                const amountDifference = expense.amount - originalExpense.amount;
+                if (originalExpense.paidFromAccountId === expense.paidFromAccountId) {
+                    if (acc.id === expense.paidFromAccountId) {
+                        newBalance -= amountDifference;
+                    }
+                } else {
+                    if (acc.id === originalExpense.paidFromAccountId) {
+                        newBalance += originalExpense.amount;
+                    }
+                    if (acc.id === expense.paidFromAccountId) {
+                        newBalance -= expense.amount;
+                    }
+                }
+            }
+            return { ...acc, balance: newBalance };
+        }));
+
+        setExpenses(prev => {
+            if (isNew) {
+                return [...prev, { ...expense, id: Date.now() }];
+            }
+            return prev.map(e => e.id === expense.id ? expense : e);
+        });
+
+        addToast('Expense saved successfully!', 'success');
+    };
+    
+    // POS Session Handlers
+    const handleStartSession = (openingBalance: number) => {
+        if (activeSession) {
+            addToast('There is already an active session.', 'error');
+            return;
+        }
+        if (!user?.branchId) {
+            addToast('User is not assigned to a branch.', 'error');
+            return;
+        }
+        const newSession: POSSession = {
+            id: Date.now(),
+            startTime: new Date().toISOString(),
+            status: 'Open',
+            openingBalance,
+            salesIds: [],
+            totalSalesValue: 0,
+            branchId: user.branchId,
+        };
+        setPosSessions(prev => [...prev, newSession]);
+        addToast('Session started successfully!', 'success');
+        setActiveView('POS/Start');
+    };
+
+    const handleCloseSession = (closingBalance: number) => {
+        if (!activeSession) {
+            addToast('No active session to close.', 'error');
+            return;
+        }
+
+        const salesInSession = sales.filter(s => activeSession.salesIds.includes(s.id));
+        const totalSalesValue = salesInSession.reduce((sum, s) => sum + s.totalAmount, 0);
+
+        const updatedSession: POSSession = {
+            ...activeSession,
+            status: 'Closed',
+            endTime: new Date().toISOString(),
+            closingBalance,
+            totalSalesValue,
+        };
+        setPosSessions(prev => prev.map(s => s.id === activeSession.id ? updatedSession : s));
+        addToast('Session closed successfully.', 'success');
+    };
+
+    const handleSaveProductionOrder = (order: ManufacturingOrder) => {
+        const originalOrder = productionOrders.find(o => o.id === order.id);
+    
+        setProductionOrders(prev => {
+            const exists = prev.some(o => o.id === order.id);
+            return exists ? prev.map(o => (o.id === order.id ? order : o)) : [...prev, order];
+        });
+    
+        if (order.status === 'DONE' && originalOrder?.status !== 'DONE') {
+            setInventory(prevInv => {
+                let newInv = [...prevInv];
+
+                // 1. Deduct raw materials from formula
+                const totalVolume = order.yield.theoreticalMl;
+                order.formula.forEach(line => {
+                    const productDetails = products.find(p => p.id === line.materialId);
+                    if (!productDetails) {
+                        console.warn(`Product details not found for material ID ${line.materialId}`);
+                        return;
+                    }
+
+                    const volumeMl = (line.percentage / 100) * totalVolume;
+                    const density = line.density || productDetails.density || 1;
+                    const quantityG = volumeMl * density;
+
+                    let quantityToDeduct = 0;
+                    if (productDetails.baseUnit === 'g') {
+                        quantityToDeduct = quantityG;
+                    } else if (productDetails.baseUnit === 'ml') {
+                        quantityToDeduct = volumeMl;
+                    } else {
+                        console.warn(`Unsupported base unit '${productDetails.baseUnit}' for formula deduction.`);
+                        return;
+                    }
+
+                    const invIndex = newInv.findIndex(i => i.branchId === order.branchId && i.productId === line.materialId);
+                    if (invIndex > -1) {
+                        newInv[invIndex].quantity -= quantityToDeduct;
+                    }
+                });
+
+                // 2. Deduct packaging items
+                const unitsProduced = order.yield.actualUnits || order.unitsRequested;
+                order.packagingItems.forEach(item => {
+                    const quantityToDeduct = item.qtyPerUnit * unitsProduced;
+                    const invIndex = newInv.findIndex(i => i.branchId === order.branchId && i.productId === item.productId);
+                    if (invIndex > -1) {
+                        newInv[invIndex].quantity -= quantityToDeduct;
+                    }
+                });
+                
+                return newInv;
+            });
+            addToast(`Order ${order.id} completed. Inventory updated.`, 'success');
+        } else {
+             addToast(`Order ${order.id} status updated to ${order.status}.`, 'info');
+        }
+    };
+
+    const handleSaveProductionTask = (task: ProductionTask) => {
+        setProductionTasks(prev => {
+            const exists = prev.some(t => t.id === task.id);
+            return exists ? prev.map(t => t.id === task.id ? task : t) : [...prev, { ...task, id: Date.now() }];
+        });
+    };
+
+    const handleSaveIntegrations = (newSettings: IntegrationSettings) => {
+        setIntegrationSettings(newSettings);
+        addToast('تم حفظ إعدادات التكامل بنجاح!', 'success');
+    };
+
+    const handleSavePurchaseSettings = (newSettings: PurchaseSettings) => {
+        setPurchaseSettings(newSettings);
+        addToast('تم حفظ إعدادات المشتريات بنجاح!', 'success');
+    };
+    
+    const handleSaveJournalVoucher = (voucher: JournalVoucher) => {
+        setJournalVouchers(prev => {
+            const exists = prev.some(v => v.id === voucher.id);
+            if (exists) {
+                return prev.map(v => v.id === voucher.id ? voucher : v);
+            }
+            return [...prev, { ...voucher, id: Date.now() }];
+        });
+    };
+
+    const chatbotDataContext: ChatbotDataContext = useMemo(() => ({
+        sales,
+        purchases: purchaseInvoices,
+        products,
+        inventory,
+        customers,
+        employees,
+        branches,
+        expenses,
+        suppliers,
+    }), [sales, purchaseInvoices, products, inventory, customers, employees, branches, expenses, suppliers]);
+
+    const lowStockItemsCount = useMemo(() => inventory.filter(i => i.currentStock <= i.minimumStock && i.minimumStock > 0).length, [inventory]);
+    const pendingLeaveRequestsCount = useMemo(() => leaveRequests.filter(r => r.status === 'Pending').length, [leaveRequests]);
+    const pendingAdvanceRequestsCount = useMemo(() => advanceRequests.filter(r => r.status === 'Pending').length, [advanceRequests]);
+    const pendingGeneralRequestsCount = useMemo(() => generalRequests.filter(r => r.status === 'Pending').length, [generalRequests]);
+    const totalPendingHRRequests = pendingLeaveRequestsCount + pendingAdvanceRequestsCount + pendingGeneralRequestsCount;
+
+        // Navigation handlers
+        const handleToggleSidebarCollapse = () => {
+            setIsSidebarCollapsed(!isSidebarCollapsed);
+        };
+    
+        const handleToggleDrawer = () => {
+            setIsDrawerOpen(!isDrawerOpen);
+        };
+    
+        const handleCloseDrawer = () => {
+            setIsDrawerOpen(false);
+        };
+    
+    const sessionsForView = (user?.role === Role.BranchManager || user?.role === Role.ShopAssistant)
+    ? posSessions.filter(s => String(s.branchId) === String(user?.branchId))
+    : posSessions;
+
+    // --- Role-based Data Filtering ---
+    const isBranchScopedUser = useMemo(() =>
+        user?.role === Role.BranchManager || user?.role === Role.ShopAssistant,
+        [user]
+    );
+
+    const salesForView = useMemo(() => isBranchScopedUser ? sales.filter(s => String(s.branchId) === String(user!.branchId)) : sales, [sales, user, isBranchScopedUser]);
+    const purchaseInvoicesForView = useMemo(() => isBranchScopedUser ? purchaseInvoices.filter(p => p.branchId === user!.branchId) : purchaseInvoices, [purchaseInvoices, user, isBranchScopedUser]);
+    const inventoryForView = useMemo(() => isBranchScopedUser ? inventory.filter(i => i.branchId === user!.branchId) : inventory, [inventory, user, isBranchScopedUser]);
+    const employeesForView = useMemo(() => isBranchScopedUser ? employees.filter(e => e.branchId === user!.branchId) : employees, [employees, user, isBranchScopedUser]);
+    const expensesForView = useMemo(() => isBranchScopedUser ? expenses.filter(e => e.branchId === user!.branchId) : expenses, [expenses, user, isBranchScopedUser]);
+
+
+    if (!user) {
+        return (
+            <AuthContext.Provider value={authContextValue}>
+                <LoginScreen />
+            </AuthContext.Provider>
+        );
+    }
+    
+    const renderView = () => {
+        if (activeView.startsWith('MyProfile')) return <EmployeePortal user={user} employees={employees} leaveRequests={leaveRequests} advanceRequests={advanceRequests} generalRequests={generalRequests} attendance={attendance} salaryPayments={salaryPayments} onSaveLeaveRequest={handleSaveLeaveRequest} onSaveAdvanceRequest={handleSaveAdvanceRequest} onSaveGeneralRequest={handleSaveGeneralRequest} />;
+        if (activeView.startsWith('Dashboard')) return <Dashboard sales={salesForView} purchases={purchaseInvoicesForView} employees={employeesForView} inventory={inventoryForView} products={products} branches={branches} settings={settings} accounts={chartOfAccounts} expenses={expensesForView} renewables={renewables} leaveRequests={leaveRequests} advanceRequests={advanceRequests} generalRequests={generalRequests} suppliers={suppliers} setActiveView={setActiveView} />;
+        
+        // Sales Module
+        if (activeView.startsWith('Sales/Invoices') || activeView === 'Sales') return <SalesInvoices sales={salesForView} onSave={handleSaveSale} branches={branches} products={products} inventory={inventoryForView} customers={customers} />;
+        if (activeView.startsWith('Sales/Quotations')) return <SalesQuotations quotations={salesQuotations} onSave={handleSaveSalesQuotation} onConvertToInvoice={handleConvertQuoteToInvoice} customers={customers} products={products} />;
+        if (activeView.startsWith('Sales/Returns')) return <SalesReturns returns={salesReturns} sales={sales} customers={customers} />;
+        if (activeView.startsWith('Sales/CreditNotes')) return <CreditNotes notes={creditNotes} customers={customers} />;
+        if (activeView.startsWith('Sales/Recurring')) return <RecurringInvoices invoices={recurringInvoices} customers={customers} />;
+        if (activeView.startsWith('Sales/Payments')) return <CustomerPayments payments={customerPayments} customers={customers} />;
+
+        // Purchases Module
+        if (activeView.startsWith('Purchases/Invoices')) return <PurchaseInvoices invoices={purchaseInvoicesForView} onSave={handleSavePurchaseInvoice} branches={branches} products={products} sales={salesForView} inventory={inventoryForView} suppliers={suppliers} />;
+        if (activeView.startsWith('Purchases/Suppliers')) return <Suppliers suppliers={suppliers} onSave={handleSaveSupplier} />;
+        if (activeView.startsWith('Purchases/Requests')) return <PurchaseRequests requests={purchaseRequests} onSave={handleSavePurchaseRequest} employees={employees} branches={branches} products={products} />;
+        if (activeView.startsWith('Purchases/RFQs')) return <RequestForQuotations rfqs={rfqs} onSave={handleSaveRfq} suppliers={suppliers} products={products} purchaseRequests={purchaseRequests} />;
+        if (activeView.startsWith('Purchases/Quotations')) return <PurchaseQuotations quotations={purchaseQuotations} onSave={handleSavePurchaseQuotation} suppliers={suppliers} products={products} rfqs={rfqs} />;
+        if (activeView.startsWith('Purchases/Orders')) return <PurchaseOrders orders={purchaseOrders} onSave={handleSavePurchaseOrder} suppliers={suppliers} products={products} purchaseQuotations={purchaseQuotations} />;
+        if (activeView.startsWith('Purchases/Returns')) return <PurchaseReturns returns={purchaseReturns} onSave={handleSavePurchaseReturn} suppliers={suppliers} products={products} />;
+        if (activeView.startsWith('Purchases/DebitNotes')) return <DebitNotes notes={debitNotes} onSave={handleSaveDebitNote} suppliers={suppliers} products={products} />;
+        if (activeView.startsWith('Purchases/Payments')) return <SupplierPayments payments={supplierPayments} suppliers={suppliers} />;
+        
+        // Supply Chain Module
+        if (activeView.startsWith('Supplies/Materials') || activeView === 'Supplies') {
+            return <SupplyChainPage />;
+        }
+        if (activeView.startsWith('Supplies/Inventory')) {
+            return <SupplyInventoryPage />;
+        }
+        if (activeView.startsWith('Supplies/Movements')) {
+            return <SupplyMovementsPage activeView={activeView} setActiveView={setActiveView} />;
+        }
+        
+        // Inventory Module
+        if (activeView === 'Inventory/Vouchers') return <InventoryVouchers />;
+        if (activeView === 'Inventory/Requisitions') return <InventoryRequisitions />;
+        if (activeView === 'Inventory/Movements') return <StockMovements />;
+        if (activeView === 'Inventory/Tracking') return <InventoryTracking />;
+        if (activeView === 'Inventory/Products') {
+            return (
+                <ProductsPage
+                    products={productsFromStore}
+                    onAddNew={() => handleOpenProductModal({})}
+                    onProductSelect={(product) => {
+                        const idStr = String((product as any)._id ?? product.id);
+                        setActiveView(`Inventory/Products/${idStr}`)
+                    }}
+                />
+            );
+        }
+        if (activeView.startsWith('Inventory/Products/')) {
+            const key = activeView.split('/')[2];
+            const product = productsFromStore.find(p => String((p as any).id) === key || String((p as any)._id) === key);
+            if (product) {
+                return <ProductDetailPage
+                    key={key}
+                    product={product}
+                    inventory={inventory}
+                    sales={sales}
+                    purchaseInvoices={purchaseInvoices}
+                    users={users}
+                    branches={branches}
+                    products={productsFromStore}
+                    inventoryAdjustmentLogs={inventoryAdjustmentLogs}
+                    onBack={() => setActiveView('Inventory/Products')}
+                    onEditProduct={handleOpenProductModal}
+                    onTransferInventory={handleTransferInventory}
+                    onAdjustInventory={handleAdjustInventory}
+                    onDelete={(p) => {
+                        const id = String(((p as any)._id) ?? (p as any).id);
+                        if (!id) return;
+                        if (!window.confirm('هل أنت متأكد من حذف هذا المنتج؟')) return;
+                        dispatch(deleteProduct(id))
+                          .unwrap()
+                          .then(() => { setActiveView('Inventory/Products'); dispatch(fetchProducts()); })
+                          .catch(() => {});
+                    }}
+                />
+            }
+        }
+        if (activeView.startsWith('POS/Start')) return <POS products={products} inventory={inventory} customers={customers} onSaveCustomer={handleSaveCustomer} onSave={handleSaveSale} integrationSettings={integrationSettings} branches={branches} />;
+        if (activeView.startsWith('POS/Sessions')) return <POSSessions sessions={sessionsForView} activeSession={activeSession} sales={sales} branches={branches} employees={employees} onStartSession={handleStartSession} onCloseSession={handleCloseSession} setActiveView={setActiveView} />;
+        if (activeView.startsWith('Customers')) return <Customers whatsappSettings={integrationSettings.whatsapp} branches={branches} />;
+        if (activeView.startsWith('Manufacturing/Orders')) return <ManufacturingOrderPage orderId={productionOrders[0]?.id} branches={branches} products={products} inventory={inventoryForView} employees={employeesForView} onSave={handleSaveProductionOrder} />;
+        if (activeView.startsWith('Manufacturing/Tasks')) return <ProductionTasks tasks={productionTasks} orders={productionOrders} employees={employeesForView} onSave={handleSaveProductionTask} />;
+        if (activeView.startsWith('Finance/Expenses')) return <Expenses expenses={expensesForView} onSave={handleSaveExpense} branches={branches} financialAccounts={financialAccounts} />;
+        if (activeView.startsWith('Finance/Accounts')) return <FinancialAccounts financialAccounts={financialAccounts} branches={branches} />;
+        if (activeView.startsWith('Ledger/ChartOfAccounts')) return <ChartOfAccountsPage accounts={chartOfAccounts} onSave={() => {}} sales={sales} purchases={purchaseInvoices} expenses={expenses}/>;
+        if (activeView.startsWith('Ledger/Journal')) return <JournalEntriesPage journalVouchers={journalVouchers} onSave={handleSaveJournalVoucher} accounts={chartOfAccounts} />;
+        if (activeView.startsWith('HR/Employees')) return <Employees employees={employeesForView} onSave={handleSaveEmployee} onDelete={handleDeleteEmployee} branches={branches} />;
+        if (activeView.startsWith('HR/Attendance')) return <Attendance employees={employeesForView} attendanceRecords={attendance} onRecordAttendance={handleRecordAttendance} />;
+        if (activeView.startsWith('HR/LeaveRequests')) return <LeaveRequests employees={employees} leaveRequests={leaveRequests} onSaveRequest={handleSaveLeaveRequest} />;
+        if (activeView.startsWith('HR/AdvanceRequests')) return <AdvanceRequestsPage requests={advanceRequests} employees={employees} onSaveRequest={handleSaveAdvanceRequest} />;
+        if (activeView.startsWith('HR/GeneralRequests')) return <GeneralRequestsPage requests={generalRequests} employees={employees} onSaveRequest={handleSaveGeneralRequest} />;
+        if (activeView.startsWith('HR/Salaries')) return <Salaries employees={employeesForView} payments={salaryPayments} onRunPayroll={handleRunPayroll} />;
+        if (activeView.startsWith('Branches')) return <Branches />;
+        if (activeView.startsWith('Renewals')) return <Licenses renewables={renewables} setRenewables={setRenewables} onCheckReminders={checkAndSendRenewalReminders} />;
+        if (activeView.startsWith('Reports')) return <Reports sales={salesForView} purchases={purchaseInvoicesForView} products={products} branches={branches} expenses={expensesForView} customers={customers} financialAccounts={financialAccounts} activeReport={activeView} suppliers={suppliers} />;
+        
+        // Settings
+        if (activeView.startsWith('Settings/General')) return <Settings settings={settings} setSettings={setSettings} />;
+        if (['Settings/Inventory', 'Settings/Products'].includes(activeView)) {
+             return <div className="glass-pane" style={{padding: '2rem', textAlign: 'center'}}>Coming Soon: {activeView.split('/')[1]}</div>
+        }
+        if (activeView.startsWith('Settings/Sales')) return <SettingsSales />;
+        if (activeView.startsWith('Settings/Purchases')) return <SettingsPurchases settings={purchaseSettings} onSave={handleSavePurchaseSettings} />;
+        if (activeView.startsWith('Settings/Suppliers')) return <SettingsSuppliers />;
+        if (activeView.startsWith('Settings/Integrations')) return <IntegrationsPage settings={integrationSettings} onSave={handleSaveIntegrations} />;
+        if (activeView.startsWith('Users')) return <UsersPage users={users} branches={branches} onSave={handleSaveUser} onViewPermissions={setViewingPermissionsFor} />;
+        
+        return <Dashboard sales={salesForView} purchases={purchaseInvoicesForView} employees={employeesForView} inventory={inventoryForView} products={products} branches={branches} settings={settings} accounts={chartOfAccounts} expenses={expensesForView} renewables={renewables} leaveRequests={leaveRequests} advanceRequests={advanceRequests} generalRequests={generalRequests} suppliers={suppliers} setActiveView={setActiveView} />;
+    };
+
+    return (
+        <AuthContext.Provider value={authContextValue}>
+           <div className={`app-layout theme-${theme} ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+                <Sidebar 
+                    activeView={activeView} 
+                    setActiveView={setActiveView} 
+                    lowStockCount={lowStockItemsCount} 
+                    pendingLeavesCount={totalPendingHRRequests}
+                    isCollapsed={isSidebarCollapsed}
+                    onToggleCollapse={handleToggleSidebarCollapse}
+                    // Pass super admin status to sidebar
+                    isSuperAdmin={isSuperAdmin}
+                />
+                
+                {/* Mobile Drawer */}
+                <Drawer
+                    isOpen={isDrawerOpen}
+                    onClose={handleCloseDrawer}
+                    activeView={activeView}
+                    setActiveView={setActiveView}
+                    lowStockCount={lowStockItemsCount}
+                    pendingLeavesCount={totalPendingHRRequests}
+                    products={products}
+                    onProductSelect={handleOpenProductModal}
+                    // Pass super admin status to drawer
+                    isSuperAdmin={isSuperAdmin}
+                />
+                <div className="main-content-wrapper">
+                    <Header 
+                        viewTitle={activeView} 
+                        theme={theme} 
+                        toggleTheme={() => setTheme(t => t === 'light' ? 'dark' : 'light')} 
+                        products={productsFromStore}
+                        onProductSelect={handleOpenProductModal}
+                        onViewMyPermissions={() => setViewingPermissionsFor(user)}
+                        onToggleDrawer={handleToggleDrawer}
+                        onGenerateBriefing={handleGenerateBriefing}
+                    />
+                    <main className="main-content">
+                        {renderView()}
+                    </main>
+                </div>
+                <AIChatbot dataContext={chatbotDataContext} />
+                {editingProduct && (
+                    <ProductModal
+                        product={editingProduct}
+                        allProducts={productsFromStore}
+                        onClose={handleCloseProductModal}
+                        onSave={handleSaveAndCloseProductModal}
+                    />
+                )}
+                {viewingPermissionsFor && (
+                    <PermissionsViewModal
+                        user={viewingPermissionsFor}
+                        onClose={() => setViewingPermissionsFor(null)}
+                    />
+                )}
+                <AIDailyBriefingModal 
+                    isOpen={isBriefingOpen}
+                    onClose={() => setIsBriefingOpen(false)}
+                    isLoading={isBriefingLoading}
+                    briefingContent={briefingContent}
+                />
+            </div>
+        </AuthContext.Provider>
+    );
+};
+
+const App: React.FC = () => {
+    return (
+        <ToastProvider>
+            <AppContent />
+        </ToastProvider>
+    );
+}
+
+export default App;

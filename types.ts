@@ -1,0 +1,1055 @@
+
+export enum Role {
+  SuperAdmin = 'Super Admin',
+  FinancialManager = 'Financial Manager',
+  Perfumer = 'Perfumer',
+  Accountant = 'Accountant',
+  BranchManager = 'Branch Manager',
+  ShopAssistant = 'Shop Assistant',
+  EcommerceManager = 'E-commerce Manager',
+  Employee = 'Employee',
+}
+export type StockMovementType = 'Purchase' | 'Sale' | 'Adjustment' | 'Transfer' | 'IN';
+
+export interface StockMovement {
+  _id: string;
+  productId: string | Product;
+  movementType: StockMovementType;
+  quantity: number;
+  fromBranch?: string | Branch;
+  toBranch?: string | Branch;
+  referenceDocument?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string;
+}
+export type Permission = 
+  | 'purchases:create' | 'purchases:read' | 'purchases:update' | 'purchases:delete'
+  | 'sales:create' | 'sales:read' | 'sales:update' | 'sales:delete'
+  | 'products:create' | 'products:read' | 'products:update' | 'products:delete'
+  | 'employees:create' | 'employees:read' | 'employees:update' | 'employees:delete'
+  | 'licenses:create' | 'licenses:read' | 'licenses:update' | 'licenses:delete'
+  | 'branches:create' | 'branches:read' | 'branches:update' | 'branches:delete'
+  | 'inventory:read' | 'inventory:transfer' | 'inventory:update' | 'inventory:adjust'
+  | 'supplies:create' | 'supplies:read' | 'supplies:update' | 'supplies:delete'
+  | 'payroll:manage' | 'payroll:read'
+  | 'reports:read:full' | 'reports:read:limited'
+  | 'settings:manage'
+  | 'manufacturing:create' | 'manufacturing:read' | 'manufacturing:tasks:manage'
+  | 'integrations:manage'
+  | 'advances:request' | 'advances:manage'
+  | 'general_requests:request' | 'general_requests:manage';
+
+export interface User {
+  id: string;
+  name: string;
+  role: Role;
+  permissions: Permission[];
+  branchId?: string;
+}
+
+export interface Project {
+  id: string;
+  name: string;
+}
+export interface AppPageProps {
+  activeView?: string;
+  setActiveView?: (view: string) => void;
+}
+export interface Branch {
+  _id?: string;
+  id: string ;
+  name: string;
+  project: string;
+  code?: string;
+  address?: {
+    street?: string;
+    city?: string;
+    state?: string;
+    postalCode?: string;
+    country?: string;
+  };
+  contact?: {
+    phone?: string;
+    email?: string;
+    manager?: string;
+  };
+  status?: 'active' | 'inactive' | 'suspended';
+  openingDate?: string;
+  closingDate?: string;
+  description?: string;
+  businessType?: 'retail' | 'wholesale' | 'warehouse' | 'office' | 'factory' | 'lab';
+  capacity?: {
+    maxEmployees?: number;
+    maxInventory?: number;
+    maxCustomers?: number;
+  };
+  budget?: {
+    monthly?: number;
+    annual?: number;
+  };
+  operatingHours?: {
+    monday?: { open: string; close: string; isOpen: boolean };
+    tuesday?: { open: string; close: string; isOpen: boolean };
+    wednesday?: { open: string; close: string; isOpen: boolean };
+    thursday?: { open: string; close: string; isOpen: boolean };
+    friday?: { open: string; close: string; isOpen: boolean };
+    saturday?: { open: string; close: string; isOpen: boolean };
+    sunday?: { open: string; close: string; isOpen: boolean };
+  };
+  createdBy?: string;
+  lastUpdatedBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface PurchaseInvoiceItem {
+  id: string;
+  productName: string;
+  productId: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+  description?: string;
+  discountPercent?: number;
+  taxPercent?: number;
+}
+
+export interface Supplier {
+    id: string | number;
+    name: string;
+    contactPerson: string;
+    email: string;
+    phone: string;
+    address: string;
+    balance: number; // Positive for money owed to them, negative for credit
+}
+
+export type Currency = 'KWD' | 'USD' | 'EUR';
+
+export type DocStatus = 'Draft' | 'Pending' | 'Approved' | 'Rejected' | 'Confirmed' | 'Billed' | 'Paid' | 'Overdue' | 'Returned' | 'Cancelled' | 'Closed' | 'Sent' | 'Accepted' | 'Expired' | 'Open' | 'Applied' | 'Void' | 'Active' | 'Paused' | 'Ended' | 'Completed';
+
+
+export interface PurchaseInvoice {
+  id: string;
+  branchId: string;
+  brand: 'Arabiva' | 'Generic';
+  supplierId: string;
+  date: string;
+  amount: number; // Final amount in KWD
+  amountInCurrency: number;
+  currency: Currency;
+  exchangeRate: number;
+  type: 'Local' | 'External';
+  description: string;
+  paymentStatus: 'Paid' | 'Pending' | 'Overdue';
+  items: PurchaseInvoiceItem[];
+  purchaseOrderId?: string;
+  notes?: string;
+  attachments?: string;
+  templateId?: string;
+}
+
+export interface PurchaseRequestItem {
+    productId: string;
+    quantity: number;
+    notes?: string;
+}
+export interface PurchaseRequest {
+    id: string;
+    name?: string; // "مسمى"
+    date: string;
+    dueDate?: string;
+    requestedByUserId: string;
+    branchId: string;
+    items: PurchaseRequestItem[];
+    status: 'Draft' | 'Pending Approval' | 'Approved' | 'Rejected' | 'Ordered';
+    notes?: string;
+    attachment?: string;
+}
+
+export interface PurchaseOrderItem {
+    productId: string;
+    description?: string;
+    quantity: number;
+    unitPrice: number;
+    discountPercent?: number;
+    taxId?: string;
+    total: number;
+}
+export interface PurchaseOrder {
+    id: string;
+    date: string;
+    supplierId: string;
+    items: PurchaseOrderItem[];
+    totalAmount: number;
+    status: 'Draft' | 'Confirmed' | 'Billed' | 'Completed' | 'Cancelled';
+    quotationId?: string;
+    notes?: string;
+    shippingCost?: number;
+    discountAmount?: number;
+    templateId?: string;
+    validUntil?: string;
+    currency?: Currency;
+}
+
+export interface PurchaseReturnItem {
+    productId: string;
+    quantity: number;
+    reason: string;
+    description?: string;
+    unitPrice: number;
+    discountPercent?: number;
+    taxId?: string;
+    total: number;
+}
+export interface PurchaseReturn {
+    id: string;
+    date: string;
+    supplierId: string;
+    returnNumber?: string;
+    items: PurchaseReturnItem[];
+    totalReturnedAmount: number;
+    status: 'Draft' | 'Returned';
+    notes?: string;
+    shippingCost?: number;
+    discountAmount?: number;
+    purchaseInvoiceId?: string; // Link to original invoice
+}
+
+export interface DebitNoteItem {
+    id: string;
+    productId: string;
+    description?: string;
+    quantity: number;
+    unitPrice: number;
+    discountPercent?: number;
+    taxId?: string;
+    total: number;
+}
+
+export interface DebitNote {
+    id: string;
+    date: string;
+    supplierId: string;
+    items: DebitNoteItem[];
+    amount: number;
+    reason: string;
+    debitNoteNumber?: string;
+    notes?: string;
+    purchaseReturnId?: string;
+}
+
+export interface RequestForQuotationItem {
+    productId: string;
+    quantity: number;
+}
+export interface RequestForQuotation {
+    id: string;
+    date: string;
+    code?: string;
+    supplierIds: string[];
+    items: RequestForQuotationItem[];
+    deadline: string;
+    dueDate?: string;
+    status: 'Draft' | 'Sent' | 'Closed';
+    notes?: string;
+    attachment?: string;
+    purchaseRequestIds?: string[];
+}
+
+export interface PurchaseQuotationItem {
+    productId: string;
+    description?: string;
+    quantity: number;
+    unitPrice: number;
+    discountPercent?: number;
+    taxId?: string;
+    total: number;
+}
+export interface PurchaseQuotation {
+    id: string;
+    rfqId: string;
+    supplierId: string;
+    date: string;
+    items: PurchaseQuotationItem[];
+    totalAmount: number;
+    status: 'Received' | 'Accepted' | 'Rejected';
+    notes?: string;
+    shippingCost?: number;
+    discountAmount?: number;
+}
+
+export interface SupplierPayment {
+    id: string;
+    date: string;
+    supplierId: string;
+    amount: number;
+    paymentMethod: PaymentMethod;
+    notes?: string;
+}
+
+export interface SaleItem {
+  id: string | number;
+  productName: string;
+  productId: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+}
+
+export type PaymentMethod = 'Cash' | 'Card' | 'K-Net' | 'Credit' | 'MyFatoorah';
+
+export interface Sale {
+  id: string;
+  branchId: string;
+  brand: 'Arabiva' | 'Generic';
+  invoiceNumber: string;
+  customerId?: string | number;
+  customerName: string;
+  date: string;
+  totalAmount: number;
+  paymentMethod: PaymentMethod;
+  paymentStatus: 'Paid' | 'Pending' | 'Overdue';
+  items: SaleItem[];
+  sessionId?: string;
+  quotationId?: string;
+}
+
+export interface SalesQuotationItem {
+    productId: string;
+    productName: string;
+    quantity: number;
+    unitPrice: number;
+    total: number;
+}
+export interface SalesQuotation {
+    id: string;
+    quoteNumber: string;
+    customerId: string;
+    date: string;
+    expiryDate: string;
+    items: SalesQuotationItem[];
+    totalAmount: number;
+    status: 'Draft' | 'Sent' | 'Accepted' | 'Rejected' | 'Expired';
+}
+
+export interface SalesReturnItem {
+    productId: string;
+    quantity: number;
+    reason: string;
+}
+export interface SalesReturn {
+    id: string;
+    returnNumber: string;
+    date: string;
+    originalInvoiceId: string;
+    customerId: string;
+    items: SalesReturnItem[];
+    totalReturnedAmount: number;
+    status: 'Draft' | 'Returned' | 'Completed';
+}
+
+export interface CreditNote {
+    id: string;
+    noteNumber: string;
+    date: string;
+    salesReturnId?: string;
+    customerId: string;
+    amount: number;
+    reason: string;
+    status: 'Open' | 'Applied' | 'Void';
+}
+
+export interface RecurringInvoice {
+    id: string;
+    customerId: string;
+    startDate: string;
+    frequency: 'Monthly' | 'Quarterly' | 'Yearly';
+    items: SaleItem[]; // Re-use SaleItem
+    totalAmount: number;
+    nextInvoiceDate: string;
+    status: 'Active' | 'Paused' | 'Ended';
+}
+
+export interface CustomerPayment {
+    id: string;
+    paymentNumber: string;
+    date: string;
+    customerId: string;
+    amount: number;
+    paymentMethod: PaymentMethod;
+    appliedToInvoiceId?: string;
+    notes?: string;
+}
+
+
+export type EmployeeAttachmentType = 'Passport' | 'ID' | 'CV' | 'Other';
+
+export interface EmployeeAttachment {
+    id: string;
+    name: string;
+    type: EmployeeAttachmentType;
+    file: File;
+    uploadDate: string;
+}
+
+export interface EmployeeBenefit {
+    title: string;
+    description: string;
+    icon: string; // Name of the icon component
+}
+
+export interface EmployeeData {
+    id: string | number;
+    name:string;
+    position: string;
+    branchId: string;
+    salary: number;
+    allowances: number;
+    advances: number;
+    hireDate: string;
+    annualLeaveDays: number; // Total entitlement for the year
+    attachments?: EmployeeAttachment[];
+    benefits?: EmployeeBenefit[];
+}
+
+export interface Report {
+    name: string;
+    description: string;
+    requiredPermission: Permission;
+}
+
+export interface InvoiceData {
+  vendor?: string;
+  date?: string;
+  amount?: number;
+}
+
+export type RenewableCategory = 'License' | 'Vehicle' | 'Permit' | 'Subscription' | 'Other';
+
+export interface RenewableItem {
+  id: string;
+  category: RenewableCategory;
+  name: string;
+  identifier: string; // License number, plate number, etc.
+  issueDate: string;
+  expiryDate: string;
+  documentFile?: File;
+  remindersSent: {
+    [day: number]: boolean;
+  };
+}
+
+export interface RenewableData {
+  category?: RenewableCategory;
+  name?: string;
+  identifier?: string;
+  issueDate?: string;
+  expiryDate?: string;
+}
+
+
+export interface Product {
+  id: number;
+  name: string;
+  sku: string;
+  category: string;
+  unitPrice: number;
+  baseUnit: 'pcs' | 'g' | 'ml';
+  productLine?: string;
+  fragranceNotes?: { top: string; middle: string; base: string; };
+  components?: { productId: string; quantity: number }[];
+  barcode?: string;
+  density?: number; // g/ml
+  
+  // New detailed fields
+  description?: string;
+  brand?: string;
+  unitTemplate?: string;
+  purchasePrice?: number;
+  taxId?: string;
+  isTaxable?: boolean;
+  lowestSellingPrice?: number;
+  discountPercent?: number;
+  hasExpiryDate?: boolean;
+  trackInventory?: boolean;
+  trackingType?: 'None' | 'Quantity';
+  alertQuantity?: number;
+  internalNotes?: string;
+  tags?: string;
+  status?: 'Active' | 'Inactive';
+  supplierProductCode?: string;
+  image?: string;
+}
+
+export interface InventoryItem {
+  id: number;
+  name: string;
+  type: string;
+  currentStock: number;
+  minimumStock: number;
+  unit: string;
+  costPerUnit: number;
+  location?: string;
+  barcode?: string;
+  sku?: string;
+  locked: boolean;
+  branchId: number;
+  productId?: number;
+  quantity?: number;
+  minStock?: number;
+  lotNumber?: string;
+  expiryDate?: string;
+}
+
+export type AdjustmentReason = 'Damaged Goods' | 'Stock Count Correction' | 'Initial Stock' | 'Return to Supplier' | 'Other';
+
+export interface InventoryAdjustmentLog {
+  id: string | number;
+  date: string;
+  branchId: string | number;
+  productId: string | number;
+  adjustedByUserId: string | number;
+  oldQuantity: number;
+  newQuantity: number;
+  reason: AdjustmentReason;
+  notes?: string;
+}
+
+export interface InventoryMovement {
+  id: string;
+  date: string;
+  type: string;
+  quantityChange: number;
+  quantityAfter: number;
+  relatedDoc?: string;
+  user?: string;
+  branchId: string;
+}
+
+export interface InventoryVoucher {
+    id: string;
+    date: string;
+    status: 'تمت الموافقة' | 'قيد المراجعة' | 'مرفوض';
+    description: string;
+    details: string;
+    createdBy: string;
+    branchId: string;
+    type: 'up' | 'down';
+    source?: 'manual' | 'system';
+    warehouseId?: string;
+    customerId?: string;
+    supplierId?: string;
+    referenceId?: string;
+}
+
+export interface InventoryRequisitionItem {
+    productId: string;
+    quantity: number;
+}
+export interface InventoryRequisition {
+    id: string;
+    date: string;
+    type: 'Purchase' | 'Transfer';
+    warehouseId: string;
+    items: InventoryRequisitionItem[];
+    notes?: string;
+    attachments?: any[];
+}
+
+
+// HR Module Types
+export type LeaveType = 'Annual' | 'Sick' | 'Emergency' | 'Unpaid';
+export type RequestStatus = 'Pending' | 'Approved' | 'Rejected';
+
+export interface LeaveRequest {
+    id: string | number;
+    employeeId: string;
+    leaveType: LeaveType;
+    startDate: string;
+    endDate: string;
+    totalDays: number;
+    reason: string;
+    status: RequestStatus;
+}
+
+export interface AdvanceRequest {
+    id: string | number;
+    employeeId: string;
+    amount: number;
+    reason: string;
+    requestDate: string;
+    status: RequestStatus;
+}
+
+export type GeneralRequestType = 'Salary Certificate' | 'Experience Certificate' | 'Information Update' | 'Other';
+export interface GeneralRequest {
+    id: string | number;
+    employeeId: string;
+    type: GeneralRequestType | string;
+    details: string;
+    requestDate: string;
+    status: RequestStatus;
+}
+
+export type AttendanceStatus = 'Present' | 'Late' | 'Absent';
+
+export interface AttendanceRecord {
+    id: string | number;
+    employeeId: string;
+    date: string; // YYYY-MM-DD
+    status: AttendanceStatus;
+    lateMinutes?: number;
+}
+
+export interface SalaryPayment {
+    id: string; // e.g., "empId-month-year"
+    employeeId: string | number;
+    month: number;
+    year: number;
+    basicSalary: number;
+    allowances: number;
+    grossSalary: number;
+    deductions: {
+        advances: number;
+        lateness: number;
+        absence: number;
+        unpaidLeave: number;
+        total: number;
+    };
+    netSalary: number;
+    paidDate: string;
+    journalEntries: JournalEntry[];
+}
+
+export interface JournalEntry {
+    account: string;
+    debit: number;
+    credit: number;
+}
+
+export interface Customer {
+  id?: string | number; // Can be either string (MongoDB _id) or number
+  _id?: string; // MongoDB _id field
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  balance: number;
+  branchId?: string;
+  projectId?: string;
+  addedBy: string;
+}
+
+// Finance Module Types
+export enum ExpenseCategory {
+    Utilities = 'Utilities',
+    Rent = 'Rent',
+    Salaries = 'Salaries',
+    MarketingBranding = 'Marketing & Branding',
+    RawMaterials = 'Raw Materials',
+    Packaging = 'Packaging',
+    EcommerceFees = 'E-commerce Fees',
+    LabSupplies = 'Lab Supplies',
+    ShippingDelivery = 'Shipping & Delivery',
+    GovernmentFees = 'Government Fees',
+    Maintenance = 'Maintenance',
+    Other = 'Other'
+}
+
+export interface Expense {
+    id: string | number;
+    date: string;
+    branchId: string;
+    category: ExpenseCategory;
+    amount: number;
+    description: string;
+    paidFromAccountId: string;
+}
+
+export interface FinancialAccount {
+    id: string;
+    name: string;
+    type: 'Bank' | 'Cash';
+    branchId?: string;
+    balance: number;
+}
+
+export type AccountType = 'Asset' | 'Liability' | 'Equity' | 'Revenue' | 'Expense';
+
+export interface Account {
+  id: string; // Account code, e.g., "101-01"
+  name: string;
+  type: AccountType;
+  children?: Account[];
+}
+
+export interface GeneralLedgerEntry {
+  id: string;
+  date: string;
+  account: string;
+  description: string;
+  debit: number;
+  credit: number;
+  sourceType: 'Sale' | 'Purchase' | 'Expense' | 'Other';
+  sourceId: string;
+}
+
+export interface JournalVoucherLine {
+    id: string;
+    accountId: string;
+    debit: number;
+    credit: number;
+    description?: string;
+}
+
+export interface JournalVoucher {
+    id: string | number;
+    date: string;
+    reference: string;
+    lines: JournalVoucherLine[];
+}
+
+
+export interface POSSession {
+  id: string | number;
+  startTime: string;
+  endTime?: string;
+  status: 'Open' | 'Closed';
+  openingBalance: number;
+  closingBalance?: number;
+  totalSalesValue: number; 
+  salesIds: string[];
+  branchId: string;
+}
+
+// Legacy Manufacturing Module Types - To be replaced
+export type ProductionOrderStatus_Legacy = 'Pending' | 'In Progress' | 'Completed';
+
+export interface ProductionOrder_Legacy {
+  id: string;
+  productId: string; // The composite product being manufactured
+  quantity: number; // How many units to produce
+  branchId: string;
+  status: ProductionOrderStatus_Legacy;
+  creationDate: string;
+}
+
+export interface Comment {
+  id: string;
+  userId: string;
+  userName: string;
+  timestamp: string; // ISO string
+  text: string;
+}
+
+export type ProductionTaskStatus = 'To Do' | 'In Progress' | 'Completed';
+
+export interface ProductionTask {
+    id: string | number;
+    name: string;
+    productionOrderId: string; // Changed to string to match new ManufacturingOrder ID
+    assignedToEmployeeId?: string;
+    deadline?: string;
+    status: ProductionTaskStatus;
+    notes?: string;
+    comments?: Comment[];
+}
+
+
+export interface ChatbotDataContext {
+  sales: Sale[];
+  purchases: PurchaseInvoice[];
+  products: Product[];
+  inventory: InventoryItem[];
+  customers: Customer[];
+  employees: EmployeeData[];
+  branches: Branch[];
+  expenses: Expense[];
+  suppliers: Supplier[];
+}
+
+export interface DailyBriefingContext {
+  today: string;
+  yesterdaySalesTotal: number;
+  yesterdayInvoiceCount: number;
+  topSellingProducts: { name: string; quantity: number; revenue: number; }[];
+  lowStockItemsCount: number;
+  criticalLowStockItems: { name: string; quantity: number; minStock: number; }[];
+  pendingHRRequests: number;
+  upcomingRenewals: { name: string; daysUntilExpiry: number; }[];
+}
+
+export interface PurchaseOrderSuggestionContext {
+  branchName: string;
+  forecastDays: number;
+  inventory: {
+    productId: string;
+    productName: string;
+    sku: string;
+    currentStock: number;
+    minStock: number;
+    salesVelocityPerDay: number; // calculated from sales data
+  }[];
+}
+
+export interface FormulaSuggestionContext {
+  prompt: string;
+  rawMaterials: {
+    id: string;
+    name: string;
+    sku: string;
+    baseUnit: 'g' | 'ml' | 'pcs';
+    availableQuantity: number;
+  }[];
+}
+
+export interface NewProductIdeaContext {
+  prompt: string;
+  rawMaterials: {
+    id: string;
+    name: string;
+    sku: string;
+    baseUnit: 'g' | 'ml' | 'pcs';
+    availableQuantity: number;
+  }[];
+}
+
+export interface NewProductIdeaResponse {
+    productName: string;
+    fragranceNotes: {
+        top: string;
+        middle: string;
+        base: string;
+    };
+    formula: FormulaLine[];
+}
+
+
+export interface SuggestedPurchaseOrderItem {
+  productId: string;
+  productName: string;
+  sku: string;
+  currentStock: number;
+  recommendedQuantity: number;
+  reasoning: string;
+}
+
+// Perfume Manufacturing Types
+export type Concentration = "EDT_15" | "EDP_20" | "EXTRAIT_30" | "OIL_100";
+
+export type FormulaLine = {
+  id: string;
+  materialId: number;
+  materialName: string;
+  materialSku: string;
+  kind: "AROMA_OIL" | "ETHANOL" | "DI_WATER" | "FIXATIVE" | "COLOR" | "ADDITIVE";
+  percentage: number; // 0–100
+  density?: number; // g/ml (optional)
+};
+
+export type ProcessLoss = {
+  mixingLossPct: number;
+  filtrationLossPct: number;
+  fillingLossPct: number;
+};
+
+export type QCCheck = {
+  appearance: string;
+  clarity: "Clear" | "Slight Haze" | "Hazy";
+  density?: number;
+  refractiveIndex?: number;
+  odorMatch: "Pass" | "Borderline" | "Fail";
+  stabilityNotes?: string;
+  result: "APPROVED" | "REJECTED" | "REWORK";
+  attachments?: string[]; // URLs
+};
+
+export type PackagingItem = {
+  productId: number;
+  name: string;
+  qtyPerUnit: number; // 1 sprayer/1 cap/2 stickers...
+};
+
+export interface ManufacturingOrder {
+  id: string; // MO-YYYYMMDD-SEQ
+  productName: string;
+  manufacturingType: 'INTERNAL' | 'CONTRACT';
+  responsibleEmployeeId?: string;
+  concentration: Concentration;
+  bottleSizeMl: number; // 30/50/100
+  unitsRequested: number; // number of bottles
+  batchCode: string; // auto-generated
+  branchId: number; // Factory/Lab
+  manufacturingDate?: string; // ISO
+  expiryDate?: string; // ISO
+  dueAt?: string; // ISO
+  formula: FormulaLine[];
+  processLoss: ProcessLoss;
+  macerationDays: number;
+  chilling?: { hours: number; temperatureC: number };
+  filtration?: { stages: number; micron: number };
+  qc?: QCCheck;
+  packagingItems: PackagingItem[];
+  costs: {
+    materials: number;
+    labor: number;
+    overhead: number;
+    packaging: number;
+    other: number;
+    total: number;
+    perMl: number;
+    perBottle: number;
+    suggestedRetail: number;
+  };
+  yield: {
+    theoreticalMl: number;
+    expectedMl: number;
+    actualMl?: number;
+    expectedUnits: number;
+    actualUnits?: number;
+    yieldPercentage?: number;
+  };
+  distribution?: { id: string; locationName: string; units: number }[];
+  status: "DRAFT" | "IN_PROGRESS" | "MACERATING" | "QC" | "PACKAGING" | "DONE" | "CLOSED";
+};
+
+
+// Integration Types
+export interface EcommerceIntegrationSettings {
+    isEnabled: boolean;
+    apiUrl: string;
+    apiKey: string;
+    apiSecret: string;
+    autoSyncCustomers: boolean;
+    autoSyncSales: boolean;
+    syncInterval: number; // in minutes
+}
+
+export interface PaymentGatewaySettings {
+    isEnabled: boolean;
+    apiKey: string;
+}
+
+export interface WhatsAppSettings {
+    isEnabled: boolean;
+    apiKey: string;
+    phoneNumberId: string;
+}
+
+export type WebhookEvent = 'sale.created' | 'customer.created' | 'inventory.low_stock' | 'purchase.created';
+export type Webhook = {
+    event: WebhookEvent;
+    url: string;
+    isEnabled: boolean;
+}
+export interface N8nSettings {
+    isEnabled: boolean;
+    webhooks: Webhook[];
+}
+
+export interface IntegrationSettings {
+    openCart: EcommerceIntegrationSettings;
+    wooCommerce: EcommerceIntegrationSettings;
+    myFatoorah: PaymentGatewaySettings;
+    whatsapp: WhatsAppSettings;
+    n8n: N8nSettings;
+}
+
+export interface PurchaseApprovalTier {
+  id: string;
+  minAmount: number;
+  approverRole: Role;
+}
+
+export interface PurchaseSettings {
+  defaultPaymentTermsDays: number;
+  defaultShippingPreference: 'Collect' | 'Delivery';
+  isApprovalWorkflowEnabled: boolean;
+  approvalTiers: PurchaseApprovalTier[];
+}
+
+// Supply Chain Types
+export interface Supply {
+  id: string;
+  name: string;
+  sku: string;
+  category: string;
+  unitPrice: number;
+  baseUnit: 'pcs' | 'g' | 'ml' | 'kg' | 'l';
+  supplierId: string;
+  description?: string;
+  density?: number; // g/ml
+  minStock?: number;
+  reorderPoint?: number;
+  leadTime?: number; // days
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Supply Chain Item for incoming materials tracking
+export enum SupplyChainStatus {
+  InTransit = 'In Transit',
+  Stored = 'Stored',
+  Delivered = 'Delivered',
+  Returned = 'Returned',
+  Expired = 'Expired',
+  Damaged = 'Damaged',
+}
+
+export enum SupplyChainTransportMode {
+  Air = 'Air',
+  Sea = 'Sea',
+  Road = 'Road',
+  Rail = 'Rail',
+  None = 'None',
+}
+
+export interface SupplyChainItem {
+  id?: string;
+  _id?: string;
+  supplyName?: string;   // <-- the field that holds the name
+  name?: string;         // fallback if you use this
+  sku?: string;
+  gtin?: string;
+  batchNumber?: string;
+  serialNumber?: string;
+  productName: string;
+  quantity: number;
+  unit?: string;
+  manufacturer?: string;
+  originCountry?: string;
+  manufactureDate?: string;
+  expiryDate?: string;
+  currentStatus?: SupplyChainStatus;
+  transportMode?: SupplyChainTransportMode;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface SupplyInventory {
+  supplyId: string; // Change from string to string
+  branchId: string;
+  quantity: number;
+  minStock?: number;
+  reorderPoint?: number;
+  lastMovementDate?: string;
+}
+export interface SupplyMovement {
+  id: string;
+  
+  supplyId: string;
+  branchId: string;
+  type: 'IN' | 'OUT' | 'TRANSFER' | 'ADJUSTMENT';
+  quantity: number;
+  date: string;
+  referenceType?: 'PURCHASE' | 'PRODUCTION' | 'INVENTORY_ADJUSTMENT' | 'TRANSFER';
+  referenceId?: string;
+  notes?: string;
+  createdBy: string;
+}
+
+// Declare QRCode library from CDN for TypeScript
+declare var QRCode: any;
