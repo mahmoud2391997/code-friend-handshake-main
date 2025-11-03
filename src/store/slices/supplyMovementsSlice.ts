@@ -45,23 +45,39 @@ export const fetchSupplyMovements = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await fetch(`${API_BASE_URL}/supply-movements`);
-      if (!response.ok) throw new Error('Failed to fetch supply movements');
+      if (!response.ok) {
+        // If supply-movements endpoint doesn't exist, return empty array
+        console.warn('Supply movements endpoint not found, returning empty array');
+        return [];
+      }
 
       const data = await response.json();
+      
+      // Ensure data is an array
+      if (!Array.isArray(data)) {
+        return [];
+      }
+
+      // If no actual movements, return empty array
+      if (data.length === 0) {
+        return [];
+      }
 
       const mappedData = data.map((m: any) => ({
         ...m,
-        id: m._id,
-        supplyId: m.supplyId,
-        movementType: m.type || m.movementType,
+        id: m._id || m.id,
+        supplyId: m.supplyId || m._id,
+        movementType: m.type || m.movementType || 'IN',
+        quantity: m.quantity || 0,
         branchId: m.toBranch || m.fromBranch || m.branchId,
-        date: m.createdAt || m.date,
+        date: m.createdAt || m.date || new Date().toISOString(),
         reason: m.notes || m.reason,
       }));
 
       return mappedData;
     } catch (error: any) {
-      return rejectWithValue(error.message);
+      console.warn('Error fetching supply movements:', error.message);
+      return [];
     }
   }
 );
@@ -133,6 +149,32 @@ export const deleteSupplyMovement = createAsyncThunk(
       }
 
       return id;
+    } catch (error: any) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
+// ✅ Generic create movement
+export const createSupplyMovement = createAsyncThunk(
+  'supplyMovements/createSupplyMovement',
+  async (
+    movementData: { supplyId: string; branchId: string; quantity: number; type: 'IN' | 'OUT'; notes?: string; createdBy: string },
+    { rejectWithValue }
+  ) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/supply-movements`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(movementData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to create supply movement');
+      }
+
+      return await response.json();
     } catch (error: any) {
       return rejectWithValue(error.message);
     }
@@ -223,6 +265,11 @@ const supplyMovementsSlice = createSlice({
 
       // Create OUT
       .addCase(createSupplyOutMovement.fulfilled, (state, action: PayloadAction<SupplyMovement>) => {
+        state.movements.push(action.payload);
+      })
+
+      // Generic Create
+      .addCase(createSupplyMovement.fulfilled, (state, action: PayloadAction<SupplyMovement>) => {
         state.movements.push(action.payload);
       })
 

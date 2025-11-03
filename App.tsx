@@ -189,7 +189,7 @@ const AppContent: React.FC = () => {
         return user?.role === Role.SuperAdmin;
     }, [user]);
 
-    const activeSession = useMemo(() => posSessions.find(s => s.status === 'Open' && s.branchId === user?.branchId), [posSessions, user]);
+    const activeSession = useMemo(() => posSessions.find(s => s.status === 'Open' && String(s.branchId) === String(user?.branchId)), [posSessions, user]);
     
      useEffect(() => {
         document.documentElement.setAttribute('data-theme', theme);
@@ -570,7 +570,7 @@ const AppContent: React.FC = () => {
             const newSale = { ...sale, id: String(Date.now()), invoiceNumber: `INV-${sale.brand === 'Arabiva' ? 'A' : 'G'}-${Date.now()}` };
 
             if (activeSession) {
-                newSale.sessionId = activeSession.id;
+                newSale.sessionId = String(activeSession.id);
                 setPosSessions(prevSessions => prevSessions.map(s =>
                     s.id === activeSession.id
                     ? { ...s, salesIds: [...s.salesIds, newSale.id] }
@@ -581,7 +581,7 @@ const AppContent: React.FC = () => {
             setInventory(prevInv => {
                 const newInv = [...prevInv];
                 newSale.items.forEach(item => {
-                    const productDetails = products.find(p => p.id === item.productId);
+                    const productDetails = products.find(p => String(p.id) === String(item.productId));
 
                     if (productDetails?.components && productDetails.components.length > 0) {
                         // Composite product: deduct components from inventory
@@ -627,7 +627,7 @@ const AppContent: React.FC = () => {
 
         const newSale: Omit<Sale, 'id' | 'invoiceNumber'> = {
             brand: 'Arabiva', // Or determine dynamically
-            branchId: user.branchId,
+            branchId: String(user.branchId),
             customerName: customer.name,
             customerId: customerId ? String(customerId) : undefined,
             date: new Date().toISOString().split('T')[0],
@@ -966,7 +966,7 @@ const AppContent: React.FC = () => {
             openingBalance,
             salesIds: [],
             totalSalesValue: 0,
-            branchId: user.branchId,
+            branchId: user.branchId || '1',
         };
         setPosSessions(prev => [...prev, newSession]);
         addToast('Session started successfully!', 'success');
@@ -1121,10 +1121,10 @@ const AppContent: React.FC = () => {
     );
 
     const salesForView = useMemo(() => isBranchScopedUser ? sales.filter(s => String(s.branchId) === String(user!.branchId)) : sales, [sales, user, isBranchScopedUser]);
-    const purchaseInvoicesForView = useMemo(() => isBranchScopedUser ? purchaseInvoices.filter(p => p.branchId === user!.branchId) : purchaseInvoices, [purchaseInvoices, user, isBranchScopedUser]);
-    const inventoryForView = useMemo(() => isBranchScopedUser ? inventory.filter(i => i.branchId === user!.branchId) : inventory, [inventory, user, isBranchScopedUser]);
-    const employeesForView = useMemo(() => isBranchScopedUser ? employees.filter(e => e.branchId === user!.branchId) : employees, [employees, user, isBranchScopedUser]);
-    const expensesForView = useMemo(() => isBranchScopedUser ? expenses.filter(e => e.branchId === user!.branchId) : expenses, [expenses, user, isBranchScopedUser]);
+    const purchaseInvoicesForView = useMemo(() => isBranchScopedUser ? purchaseInvoices.filter(p => String(p.branchId) === String(user!.branchId)) : purchaseInvoices, [purchaseInvoices, user, isBranchScopedUser]);
+    const inventoryForView = useMemo(() => isBranchScopedUser ? inventory.filter(i => String(i.branchId) === String(user!.branchId)) : inventory, [inventory, user, isBranchScopedUser]);
+    const employeesForView = useMemo(() => isBranchScopedUser ? employees.filter(e => String(e.branchId) === String(user!.branchId)) : employees, [employees, user, isBranchScopedUser]);
+    const expensesForView = useMemo(() => isBranchScopedUser ? expenses.filter(e => String(e.branchId) === String(user!.branchId)) : expenses, [expenses, user, isBranchScopedUser]);
 
 
     if (!user) {

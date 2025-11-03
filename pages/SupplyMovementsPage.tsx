@@ -6,7 +6,7 @@ import { FilterIcon, PlusIcon, RefreshIcon } from '../components/Icon';
 import { useToasts } from '../components/Toast';
 import {
   createSupplyMovement,
-} from '../src/store/slices/supplyInventorySlice';
+} from '../src/store/slices/supplyMovementsSlice';
 import { fetchSupplyChainItems } from '../src/store/slices/supplyChainItemsSlice';
 import { fetchBranches } from '../src/store/slices/branchSlice';
 import { 
@@ -69,31 +69,43 @@ const SupplyMovementsPage: React.FC<SupplyMovementsPageProps> = ({ activeView, s
 
   const supplyLookup = useMemo(() => {
     const map = new Map<string, string>();
-    supplies.forEach((s) => {
-      map.set(String(s._id), s.productName);
-    });
+    if (Array.isArray(supplies)) {
+      supplies.forEach((s) => {
+        if (s && s._id && s.productName) {
+          map.set(String(s._id), s.productName);
+        }
+      });
+    }
     return map;
   }, [supplies]);
 
   const branchLookup = useMemo(() => {
     const map = new Map<string, string>();
-    branches.forEach((b) => {
-      const id = String(b._id);
-      const name = b.name ?? 'غير معروف';
-      map.set(id, name);
-    });
+    if (Array.isArray(branches)) {
+      branches.forEach((b) => {
+        if (b && b._id) {
+          const id = String(b._id);
+          const name = b.name ?? 'غير معروف';
+          map.set(id, name);
+        }
+      });
+    }
     return map;
   }, [branches]);
 
   const displayMovements = useMemo<MovementDisplay[]>(() => {
+    if (!Array.isArray(movements) || movements.length === 0) {
+      return [];
+    }
     return movements
       .filter((m) => {
+        if (!m) return false;
         const movementType = m.movementType || (m as any).type;
         return movementType === 'IN' || movementType === 'OUT';
       })
       .map((m) => ({
         id: m._id as string,
-        supplyName: supplyLookup.get(String(m.productId || (m as any).supplyId)) ?? 'غير معروف',
+        supplyName: supplyLookup.get(String(m.supplyId || (m as any).productId)) ?? 'غير معروف',
         branchName: branchLookup.get(String((m as any).toBranch || (m as any).branchId)) ?? 'غير معروف',
         type: (m.movementType || (m as any).type) as 'IN' | 'OUT',
         quantity: m.quantity,
@@ -136,7 +148,7 @@ const SupplyMovementsPage: React.FC<SupplyMovementsPageProps> = ({ activeView, s
   const handleSave = async (data: Omit<SupplyMovement, 'id' | 'date' | 'createdBy'>) => {
     try {
       // Ensure supplyId is properly mapped from the form data
-      const movementData = { 
+      let movementData = { 
         ...data, 
         createdBy: user!.id,
         // Map supplyId properly - if it's missing but productId exists, use that
@@ -148,7 +160,21 @@ const SupplyMovementsPage: React.FC<SupplyMovementsPageProps> = ({ activeView, s
         throw new Error('يجب تحديد المادة');
       }
       
-      await dispatch(createSupplyMovement(movementData)).unwrap();
+      // Convert movementType to type for API compatibility
+      const apiData = {
+        ...movementData,
+        type: (movementData as any).type || (movementData as any).movementType || 'IN'
+      };
+      
+      // Remove movementType as API expects 'type'
+      delete (apiData as any).movementType;
+      
+      // Validate type is either IN or OUT
+      if (apiData.type !== 'IN' && apiData.type !== 'OUT') {
+        apiData.type = apiData.quantity > 0 ? 'IN' : 'OUT';
+      }
+      
+      await dispatch(createSupplyMovement(apiData)).unwrap();
       addToast('تمت إضافة الحركة بنجاح', 'success');
       setModalOpen(false);
     } catch (e: any) {

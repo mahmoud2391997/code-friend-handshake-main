@@ -14,7 +14,7 @@ export const getStockMovements = async (req: Request, res: Response) => {
 // Get stock movement by ID
 export const getStockMovementById = async (req: Request, res: Response) => {
   try {
-    const movement = await StockMovement.findOne({ id: req.params.id });
+    const movement = await StockMovement.findById(req.params.id);
     if (!movement) {
       return res.status(404).json({ message: 'Stock movement not found' });
     }
@@ -38,8 +38,8 @@ export const createStockMovement = async (req: Request, res: Response) => {
 // Update stock movement
 export const updateStockMovement = async (req: Request, res: Response) => {
   try {
-    const movement = await StockMovement.findOneAndUpdate(
-      { id: req.params.id },
+    const movement = await StockMovement.findByIdAndUpdate(
+      req.params.id,
       req.body,
       { new: true }
     );
@@ -55,7 +55,7 @@ export const updateStockMovement = async (req: Request, res: Response) => {
 // Delete stock movement
 export const deleteStockMovement = async (req: Request, res: Response) => {
   try {
-    const movement = await StockMovement.findOneAndDelete({ id: req.params.id });
+    const movement = await StockMovement.findByIdAndDelete(req.params.id);
     if (!movement) {
       return res.status(404).json({ message: 'Stock movement not found' });
     }

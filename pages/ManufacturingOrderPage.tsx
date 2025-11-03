@@ -327,6 +327,7 @@ const ManufacturingOrderPage: React.FC<ManufacturingOrderPageProps> = (props) =>
 
   const [localOrder, setLocalOrder] = useState<ManufacturingOrder | null>(null);
   const [errors, setErrors] = useState<ValidationErrors>({});
+  const [showErrors, setShowErrors] = useState(false);
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
 
   /* ------------------------------ FETCH ORDERS ----------------------------- */
@@ -395,12 +396,16 @@ const ManufacturingOrderPage: React.FC<ManufacturingOrderPageProps> = (props) =>
 
   /* ------------------------------- VALIDATE ------------------------------- */
   useEffect(() => {
-    if (localOrder) setErrors(validateOrder(localOrder));
+    if (localOrder) {
+      const newErrors = validateOrder(localOrder);
+      setErrors(newErrors);
+    }
   }, [localOrder]);
 
   /* -------------------------------- SAVE -------------------------------- */
   const handleSave = () => {
     if (!localOrder) return;
+    setShowErrors(true);
     const curErrors = validateOrder(localOrder);
     setErrors(curErrors);
     if (Object.keys(curErrors).length > 0) {
@@ -532,12 +537,12 @@ const ManufacturingOrderPage: React.FC<ManufacturingOrderPageProps> = (props) =>
         order={localOrder}
         setOrder={setLocalOrder}
         employees={props.employees}
-        errors={errors}
+        errors={showErrors ? errors : {}}
       />
 
       {/* DISTRIBUTION (CONTRACT ONLY) */}
       {localOrder.manufacturingType === 'CONTRACT' && (
-        <SectionCard title="التوزيع" icon={LocationMarkerIcon} error={errors.distribution}>
+        <SectionCard title="التوزيع" icon={LocationMarkerIcon} error={showErrors ? errors.distribution : undefined}>
           <DistributionBuilder order={localOrder} setOrder={setLocalOrder} />
         </SectionCard>
       )}
@@ -547,7 +552,8 @@ const ManufacturingOrderPage: React.FC<ManufacturingOrderPageProps> = (props) =>
         order={localOrder}
         setOrder={setLocalOrder}
         products={props.products}
-        errors={errors}
+        inventory={props.inventory}
+        errors={showErrors ? errors : {}}
         onOpenAiModal={() => setIsAiModalOpen(true)}
       />
 
@@ -675,7 +681,7 @@ const BasicInfoSection: React.FC<{
         <FormField label="حجم الزجاجة (مل)" required error={errors.bottleSizeMl}>
           <input
             type="number"
-            value={order.bottleSizeMl}
+            value={order.bottleSizeMl || ''}
             onChange={(e) => handleChange('bottleSizeMl', Number(e.target.value))}
             className={`form-input manufacturing-input ${errors.bottleSizeMl ? 'input-error' : ''}`}
           />
@@ -684,7 +690,7 @@ const BasicInfoSection: React.FC<{
         <FormField label="الكمية المطلوبة (زجاجة)" required error={errors.unitsRequested}>
           <input
             type="number"
-            value={order.unitsRequested}
+            value={order.unitsRequested || ''}
             onChange={(e) => handleChange('unitsRequested', Number(e.target.value))}
             className={`form-input manufacturing-input ${errors.unitsRequested ? 'input-error' : ''}`}
           />
@@ -863,9 +869,10 @@ const FormulaBuilder: React.FC<{
   order: ManufacturingOrder;
   setOrder: (o: ManufacturingOrder) => void;
   products: Product[];
+  inventory: InventoryItem[];
   errors: ValidationErrors;
   onOpenAiModal: () => void;
-}> = ({ order, setOrder, products, errors, onOpenAiModal }) => {
+}> = ({ order, setOrder, products, inventory, errors, onOpenAiModal }) => {
   const rawMaterials = useMemo(
     () => products.filter((p) => p.category === 'Raw Material'),
     [products]
@@ -944,75 +951,88 @@ const FormulaBuilder: React.FC<{
               <th>النوع</th>
               <th style={{ width: '120px' }}>النسبة %</th>
               <th style={{ width: '120px' }}>الكثافة</th>
+              <th style={{ width: '100px' }}>المتاح</th>
               <th style={{ width: '50px' }}></th>
             </tr>
           </thead>
           <tbody>
-            {order.formula.map((line, idx) => (
-              <tr key={line.id}>
-                <td style={{ padding: '0.5rem' }}>
-                  <select
-                    value={line.materialId}
-                    onChange={(e) => handleLineChange(idx, 'materialId', e.target.value)}
-                    className="form-select manufacturing-select"
-                  >
-                    <option value={0}>اختر مادة</option>
-                    {rawMaterials.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.name} ({m.sku})
-                      </option>
-                    ))}
-                  </select>
-                </td>
-                <td style={{ padding: '0.5rem' }}>
-                  <select
-                    value={line.kind}
-                    onChange={(e) => handleLineChange(idx, 'kind', e.target.value)}
-                    className="form-select manufacturing-select"
-                  >
-                    <option value="AROMA_OIL">زيت عطري</option>
-                    <option value="ETHANOL">كحول</option>
-                    <option value="DI_WATER">ماء مقطر</option>
-                    <option value="FIXATIVE">مثبت</option>
-                    <option value="COLOR">لون</option>
-                    <option value="ADDITIVE">إضافات</option>
-                  </select>
-                </td>
-                <td style={{ padding: '0.5rem' }}>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={line.percentage || ''}
-                    onChange={(e) => handleLineChange(idx, 'percentage', e.target.value)}
-                    className="form-input manufacturing-input"
-                  />
-                </td>
-                <td style={{ padding: '0.5rem' }}>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={line.density || ''}
-                    onChange={(e) => handleLineChange(idx, 'density', e.target.value)}
-                    className="form-input manufacturing-input"
-                  />
-                </td>
-                <td>
-                  <button
-                    type="button"
-                    onClick={() => removeLine(idx)}
-                    style={{
-                      color: '#ef4444',
-                      background: 'none',
-                      border: 'none',
-                      cursor: 'pointer',
-                      padding: '0.25rem',
-                    }}
-                  >
-                    <TrashIcon style={{ width: '20px', height: '20px' }} />
-                  </button>
-                </td>
-              </tr>
-            ))}
+            {order.formula.map((line, idx) => {
+              const branchId = order.branchId ? Number(order.branchId) : null;
+              const inventoryItem = branchId ? inventory.find(
+                (i) => i.productId === line.materialId && Number(i.branchId) === branchId
+              ) : undefined;
+              const availableQty = inventoryItem?.quantity || 0;
+              const unit = rawMaterials.find(m => m.id === line.materialId)?.baseUnit || 'g';
+              
+              return (
+                <tr key={line.id}>
+                  <td style={{ padding: '0.5rem' }}>
+                    <select
+                      value={line.materialId}
+                      onChange={(e) => handleLineChange(idx, 'materialId', e.target.value)}
+                      className="form-select manufacturing-select"
+                    >
+                      <option value={0}>اختر مادة</option>
+                      {rawMaterials.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.name} ({m.sku})
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td style={{ padding: '0.5rem' }}>
+                    <select
+                      value={line.kind}
+                      onChange={(e) => handleLineChange(idx, 'kind', e.target.value)}
+                      className="form-select manufacturing-select"
+                    >
+                      <option value="AROMA_OIL">زيت عطري</option>
+                      <option value="ETHANOL">كحول</option>
+                      <option value="DI_WATER">ماء مقطر</option>
+                      <option value="FIXATIVE">مثبت</option>
+                      <option value="COLOR">لون</option>
+                      <option value="ADDITIVE">إضافات</option>
+                    </select>
+                  </td>
+                  <td style={{ padding: '0.5rem' }}>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={line.percentage || ''}
+                      onChange={(e) => handleLineChange(idx, 'percentage', e.target.value)}
+                      className="form-input manufacturing-input"
+                    />
+                  </td>
+                  <td style={{ padding: '0.5rem' }}>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={line.density || ''}
+                      onChange={(e) => handleLineChange(idx, 'density', e.target.value)}
+                      className="form-input manufacturing-input"
+                    />
+                  </td>
+                  <td style={{ padding: '0.5rem', textAlign: 'center', fontWeight: 'bold' }}>
+                    {availableQty.toFixed(2)} {unit}
+                  </td>
+                  <td>
+                    <button
+                      type="button"
+                      onClick={() => removeLine(idx)}
+                      style={{
+                        color: '#ef4444',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        padding: '0.25rem',
+                      }}
+                    >
+                      <TrashIcon style={{ width: '20px', height: '20px' }} />
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
