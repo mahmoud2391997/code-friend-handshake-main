@@ -18,6 +18,59 @@ interface SupplyChainItemsState {
   pagination: Pagination;
 }
 
+const mockSupplyItems: SupplyChainItem[] = [
+  {
+    _id: '1',
+    id: 1,
+    productName: 'زيت الورد البلغاري',
+    sku: 'ROSE-OIL-001',
+    quantity: 50,
+    unit: 'ml',
+    manufacturer: 'Bulgarian Rose Co.',
+    status: 'Active'
+  },
+  {
+    _id: '2',
+    id: 2,
+    productName: 'زيت العود الكمبودي',
+    sku: 'OUD-CAM-001',
+    quantity: 25,
+    unit: 'ml',
+    manufacturer: 'Cambodia Oud Ltd.',
+    status: 'Active'
+  },
+  {
+    _id: '3',
+    id: 3,
+    productName: 'مسك أبيض طبيعي',
+    sku: 'MUSK-WHT-001',
+    quantity: 100,
+    unit: 'g',
+    manufacturer: 'Natural Musk Co.',
+    status: 'Active'
+  },
+  {
+    _id: '4',
+    id: 4,
+    productName: 'كحول إيثيلي 96%',
+    sku: 'ETH-ALC-96',
+    quantity: 1000,
+    unit: 'ml',
+    manufacturer: 'Chemical Supplies Inc.',
+    status: 'Active'
+  },
+  {
+    _id: '5',
+    id: 5,
+    productName: 'زجاجات عطر 50ml',
+    sku: 'BOTTLE-50ML',
+    quantity: 500,
+    unit: 'pcs',
+    manufacturer: 'Glass Works Ltd.',
+    status: 'Active'
+  }
+];
+
 const initialState: SupplyChainItemsState = {
   items: [],
   loading: false,
@@ -56,30 +109,22 @@ export const fetchSupplyChainItems = createAsyncThunk(
   'supplyChainItems/fetchAll',
   async (params: { page?: number; limit?: number; q?: string } | undefined, { rejectWithValue }) => {
     try {
-      const searchParams = new URLSearchParams();
-      if (params?.page) searchParams.set('page', String(params.page));
-      if (params?.limit) searchParams.set('limit', String(params.limit));
-      if (params?.q) searchParams.set('q', params.q);
-      const url = `${API_BASE_URL}${API_ENDPOINTS.SUPPLY_CHAIN_ITEMS}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
-      const res = await fetch(url);
-      const text = await res.text();
-
-      if (!res.ok) throw new Error(`Failed to fetch: ${res.status} - ${text}`);
-
-      let data: any;
-      try { data = JSON.parse(text); } catch { throw new Error(`Invalid JSON: ${text}`); }
-
-      const rawItems = Array.isArray(data)
-        ? data
-        : Array.isArray(data?.data)
-        ? data.data
-        : Array.isArray(data?.items)
-        ? data.items
-        : [];
+      // Return mock data instead of API call
+      let filteredItems = mockSupplyItems;
+      
+      // Apply search filter if provided
+      if (params?.q) {
+        const query = params.q.toLowerCase();
+        filteredItems = mockSupplyItems.filter(item => 
+          item.productName.toLowerCase().includes(query) ||
+          item.sku?.toLowerCase().includes(query) ||
+          item.manufacturer?.toLowerCase().includes(query)
+        );
+      }
 
       return {
-        items: rawItems.map(fromApiFormat),
-        pagination: data?.pagination || null,
+        items: filteredItems,
+        pagination: null,
       };
     } catch (err: any) {
       return rejectWithValue(err.message || 'Network error');
@@ -92,21 +137,13 @@ export const createSupplyChainItem = createAsyncThunk(
   'supplyChainItems/create',
   async (item: Omit<SupplyChainItem, 'created_at' | 'updated_at'>, { rejectWithValue }) => {
     try {
-      const payload = toApiFormat(item);
-      const res = await fetch(`${API_BASE_URL}${API_ENDPOINTS.SUPPLY_CHAIN_ITEMS}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      const text = await res.text();
-      if (!res.ok) throw new Error(`Failed to create: ${res.status} - ${text}`);
-
-      let data;
-      try { data = JSON.parse(text); } catch { throw new Error(`Invalid JSON: ${text}`); }
-
-      const created = data?.data || data;
-      if (!created) throw new Error('No data returned');
-      return fromApiFormat(created);
+      // Mock creation instead of API call
+      const newItem: SupplyChainItem = {
+        ...item,
+        _id: Date.now().toString(),
+        id: Date.now()
+      };
+      return newItem;
     } catch (err: any) {
       return rejectWithValue(err.message || 'Network error');
     }
@@ -118,16 +155,8 @@ export const updateSupplyChainItem = createAsyncThunk(
   'supplyChainItems/update',
   async (item: SupplyChainItem, { rejectWithValue }) => {
     try {
-      const payload = toApiFormat(item);
-      const identifier = (item as any)._id ?? item.id;
-      const res = await fetch(`${API_BASE_URL}${API_ENDPOINTS.SUPPLY_CHAIN_ITEMS}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) throw new Error(`Failed to update: ${res.status}`);
-      const data = await res.json();
-      return fromApiFormat(data?.data ?? data);
+      // Mock update instead of API call
+      return item;
     } catch (err: any) {
       return rejectWithValue(err.message || 'Network error');
     }

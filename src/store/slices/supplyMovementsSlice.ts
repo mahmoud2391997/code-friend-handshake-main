@@ -1,4 +1,4 @@
-import { API_BASE_URL } from '../../config/api';
+import { API_BASE_URL, API_ENDPOINTS } from '../../config/api';
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 
 // --------------------
@@ -39,95 +39,81 @@ const initialState: SupplyMovementsState = {
 // Async Thunks
 // --------------------
 
-// ✅ Fetch all supply movements
+// ✅ Fetch all supply movements (using mock data)
 export const fetchSupplyMovements = createAsyncThunk(
   'supplyMovements/fetchSupplyMovements',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/supply-movements`);
-      if (!response.ok) {
-        // If supply-movements endpoint doesn't exist, return empty array
-        console.warn('Supply movements endpoint not found, returning empty array');
-        return [];
-      }
-
-      const data = await response.json();
-      
-      // Ensure data is an array
-      if (!Array.isArray(data)) {
-        return [];
-      }
-
-      // If no actual movements, return empty array
-      if (data.length === 0) {
-        return [];
-      }
-
-      const mappedData = data.map((m: any) => ({
-        ...m,
-        id: m._id || m.id,
-        supplyId: m.supplyId || m._id,
-        movementType: m.type || m.movementType || 'IN',
-        quantity: m.quantity || 0,
-        branchId: m.toBranch || m.fromBranch || m.branchId,
-        date: m.createdAt || m.date || new Date().toISOString(),
-        reason: m.notes || m.reason,
-      }));
-
-      return mappedData;
-    } catch (error: any) {
-      console.warn('Error fetching supply movements:', error.message);
+      // Mock data instead of API call
+      const mockMovements: SupplyMovement[] = [
+        {
+          id: '1',
+          supplyId: 'SUP001',
+          movementType: 'IN',
+          quantity: 100,
+          branchId: '1',
+          date: new Date().toISOString().split('T')[0],
+          notes: 'Initial stock',
+          createdBy: 1,
+          createdAt: new Date().toISOString()
+        }
+      ];
+      return mockMovements;
+    } catch (error) {
+      console.error('Error fetching supply movements:', error);
       return [];
     }
   }
 );
 
-// ✅ Create IN movement
+// ✅ Create IN movement (using mock data)
 export const createSupplyInMovement = createAsyncThunk(
   'supplyMovements/createSupplyInMovement',
   async (
-    movementData: { supplyId: string; branchId: string; quantity: number; notes?: string; createdBy: number },
+    movementData: { supplyId: string; branchId: string; quantity: number; notes?: string; createdBy: string },
     { rejectWithValue }
   ) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/supply-movements`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({...movementData, type: 'IN'}),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to create supply movement');
-      }
-
-      return await response.json();
+      // Mock creation instead of API call
+      const newMovement: SupplyMovement = {
+        id: Date.now().toString(),
+        supplyId: movementData.supplyId,
+        movementType: 'IN',
+        quantity: movementData.quantity,
+        branchId: movementData.branchId,
+        notes: movementData.notes,
+        createdBy: parseInt(movementData.createdBy),
+        date: new Date().toISOString().split('T')[0],
+        createdAt: new Date().toISOString()
+      };
+      return newMovement;
     } catch (error: any) {
       return rejectWithValue(error.message);
     }
   }
 );
 
-// ✅ Create OUT movement
+// ✅ Create OUT movement (using mock data)
 export const createSupplyOutMovement = createAsyncThunk(
   'supplyMovements/createSupplyOutMovement',
   async (
-    movementData: { supplyId: string; branchId: string; quantity: number; notes?: string; createdBy: number },
+    movementData: { supplyId: string; branchId: string; quantity: number; notes?: string; createdBy: string },
     { rejectWithValue }
   ) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/supply-movements`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({...movementData, type: 'OUT'}),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to create supply movement');
-      }
-
-      return await response.json();
+      // Mock creation instead of API call
+      const newMovement: SupplyMovement = {
+        id: Date.now().toString(),
+        supplyId: movementData.supplyId,
+        movementType: 'OUT',
+        quantity: movementData.quantity,
+        branchId: movementData.branchId,
+        notes: movementData.notes,
+        createdBy: parseInt(movementData.createdBy),
+        date: new Date().toISOString().split('T')[0],
+        createdAt: new Date().toISOString()
+      };
+      return newMovement;
     } catch (error: any) {
       return rejectWithValue(error.message);
     }
@@ -139,7 +125,15 @@ export const deleteSupplyMovement = createAsyncThunk(
   'supplyMovements/deleteSupplyMovement',
   async (id: string, { rejectWithValue }) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/supply-movements/${id}`, {
+      // للاختبار فقط: محاكاة نجاح الحذف بدون الاتصال بالخادم
+      console.log('حذف الحركة بالمعرف:', id);
+      
+      // محاكاة استجابة ناجحة
+      return id;
+      
+      /* 
+      // الكود الأصلي للاتصال بالخادم
+      const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.STOCK_MOVEMENTS}/${id}`, {
         method: 'DELETE',
       });
 
@@ -149,8 +143,9 @@ export const deleteSupplyMovement = createAsyncThunk(
       }
 
       return id;
+      */
     } catch (error: any) {
-      return rejectWithValue(error.message);
+      return rejectWithValue(error.message || 'فشل في حذف الحركة');
     }
   }
 );
@@ -163,7 +158,7 @@ export const createSupplyMovement = createAsyncThunk(
     { rejectWithValue }
   ) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/supply-movements`, {
+      const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.STOCK_MOVEMENTS}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(movementData),

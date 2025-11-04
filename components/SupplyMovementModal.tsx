@@ -8,13 +8,14 @@ interface SupplyMovementModalProps {
   onSave: (movement: Omit<SupplyMovement, 'id' | 'date'>) => void;
   supplies: SupplyChainItem[];
   branches: Branch[];
+  initialData?: Partial<ModalFormData>;
 }
 
 const getIdentifier = (item: SupplyChainItem | Branch | null | undefined): string => {
   if (!item) return '';
   const id = (item as any)._id ?? (item as any).id;
-  if (!id) return '';
-  return typeof id === 'object' && id.toString ? id.toString() : String(id);
+  if (!id || id === 'undefined' || id === undefined) return '';
+  return String(id);
 };
 
 interface ModalFormData {
@@ -35,11 +36,11 @@ const SupplyMovementModal: React.FC<SupplyMovementModalProps> = ({
 }) => {
   const { user } = useContext(AuthContext);
   const validSupplies = supplies.filter(s => getIdentifier(s) && s.productName);
-  const validBranches = branches.filter(b => getIdentifier(b) && b.name);
+  const validBranches = branches.filter(b => b && b.name);
 
   const [formData, setFormData] = useState<ModalFormData>({
-    supplyId: validSupplies[0] ? getIdentifier(validSupplies[0]) : '',
-    branchId: validBranches[0] ? getIdentifier(validBranches[0]) : '',
+    supplyId: validSupplies[0] ? String(validSupplies[0]._id || validSupplies[0].id) : '',
+    branchId: validBranches[0] ? String(validBranches[0]._id || validBranches[0].id) : '',
     type: 'IN',
     quantity: '',
     notes: '',
@@ -66,12 +67,14 @@ const SupplyMovementModal: React.FC<SupplyMovementModalProps> = ({
 
     if (!supplyId) {
       newErrors.supplyId = 'المادة مطلوبة';
-    } else if (!validSupplies.some(s => getIdentifier(s) === supplyId)) {
+    } else if (!validSupplies.some(s => String(s._id || s.id) === supplyId)) {
       newErrors.supplyId = 'المادة المحددة غير صالحة';
     }
 
-    if (!branchId) {
+    if (!branchId || branchId === 'undefined') {
       newErrors.branchId = 'الفرع مطلوب';
+    } else if (!validBranches.some(b => String(b._id || b.id) === branchId)) {
+      newErrors.branchId = 'الفرع المحدد غير صالح';
     }
 
     const qty = Number(formData.quantity);
@@ -165,9 +168,9 @@ const SupplyMovementModal: React.FC<SupplyMovementModalProps> = ({
                 </label>
                 <select id="supplyId" name="supplyId" value={formData.supplyId} onChange={handleChange} className="form-select-enhanced" style={{ width: '100%' }}>
                   <option value="">اختر المادة...</option>
-                  {validSupplies.map(s => {
+                  {validSupplies.map((s, index) => {
                     const id = getIdentifier(s);
-                    return <option key={id} value={id}>{s.productName} ({s.sku})</option>;
+                    return <option key={id || `supply-${index}`} value={id}>{s.productName} ({s.sku})</option>;
                   })}
                 </select>
                 {errors.supplyId && <div className="error-message" style={{ color: '#ef4444', fontSize: '.75rem', marginTop: '.25rem' }}>{errors.supplyId}</div>}
@@ -179,9 +182,10 @@ const SupplyMovementModal: React.FC<SupplyMovementModalProps> = ({
                 </label>
                 <select id="branchId" name="branchId" value={formData.branchId} onChange={handleChange} className="form-select-enhanced" style={{ width: '100%' }}>
                   <option value="">اختر الفرع...</option>
-                  {validBranches.map(b => {
-                    const id = getIdentifier(b);
-                    return <option key={id} value={id}>{b.name}</option>;
+                  {validBranches.map((b, index) => {
+                    const id = String(b._id || b.id);
+                    const key = id && id !== 'undefined' ? id : `branch-${index}-${b.name}`;
+                    return <option key={key} value={id}>{b.name}</option>;
                   })}
                 </select>
                 {errors.branchId && <div className="error-message" style={{ color: '#ef4444', fontSize: '.75rem', marginTop: '.25rem' }}>{errors.branchId}</div>}
