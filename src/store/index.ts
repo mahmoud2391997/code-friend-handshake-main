@@ -14,6 +14,8 @@ import supplyInventoryReducer from './slices/supplyInventorySlice';
 import supplyMovementsReducer from './slices/supplyMovementsSlice';
 import supplyChainItemsReducer from './slices/supplyChainItemsSlice';
 import supplyChainReducer from './slices/supplyChainSlice';
+import supplyOrdersReducer from './slices/supplyOrdersSlice';
+import supplySuppliersReducer from './slices/supplySuppliersSlice';
 import manufacturingOrdersReducer from './slices/manufacturingOrdersSlice';
 import vouchersReducer from './slices/vouchersSlice';
 import stockMovementsReducer from './slices/stockMovementsSlice';
@@ -48,6 +50,8 @@ export const store = configureStore({
     supplyMovements: supplyMovementsReducer,
     supplyChainItems: supplyChainItemsReducer,
     supplyChain: supplyChainReducer,
+    supplyOrders: supplyOrdersReducer,
+    supplySuppliers: supplySuppliersReducer,
     manufacturingOrders: manufacturingOrdersReducer,
     import: importReducer,
     financialaccounts: financialAccountReducer,

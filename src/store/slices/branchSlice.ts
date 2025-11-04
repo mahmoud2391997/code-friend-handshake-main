@@ -65,8 +65,11 @@ export const fetchBranches = createAsyncThunk(
     try {
       const res = await fetch(`${API_BASE_URL}/branches`);
       if (!res.ok) throw new Error('Failed to fetch branches');
-      const data = await res.json();
-      console.log(data);
+      const response = await res.json();
+      console.log('API Response:', response);
+      
+      // Handle both direct array and {data: array} response formats
+      const data = Array.isArray(response) ? response : (response.data || []);
       
       return {
         data: Array.isArray(data) ? data.map(normalizeBranch) : [],

@@ -57,6 +57,10 @@ import Suppliers from './pages/Suppliers';
 import SupplyChainPage from './pages/SupplyChainPage';
 import SupplyInventoryPage from './pages/SupplyInventoryPage';
 import SupplyMovementsPage from './pages/SupplyMovementsPage';
+import SupplyOrdersPage from './pages/SupplyOrdersPage';
+import SupplySuppliersPage from './pages/SupplySuppliersPage';
+import SupplyDashboardPage from './pages/SupplyDashboardPage';
+import SupplyDistributionPage from './pages/SupplyDistributionPage';
 import UsersPage from './pages/UsersPage';
 import { getDailyBriefing } from './services/geminiService';
 
@@ -199,29 +203,8 @@ const AppContent: React.FC = () => {
         // Ensure products are loaded from API when the app mounts
         dispatch(fetchProducts());
         
-        // Load inventory data from API
-        const loadInventory = async () => {
-            try {
-                const response = await fetch('/api/inventory');
-                if (response.ok) {
-                    const data = await response.json();
-                    if (Array.isArray(data) && data.length > 0) {
-                        setInventory(data);
-                    } else {
-                        // If no data, use mock data as fallback
-                        setInventory(mockInventory);
-                    }
-                } else {
-                    console.warn('Failed to fetch inventory, using mock data');
-                    setInventory(mockInventory);
-                }
-            } catch (error) {
-                console.error('Error fetching inventory:', error);
-                setInventory(mockInventory);
-            }
-        };
-        
-        loadInventory();
+        // Use mock inventory data
+        setInventory(mockInventory);
     }, [dispatch]);
 
     useEffect(() => {
@@ -1159,14 +1142,26 @@ const AppContent: React.FC = () => {
         if (activeView.startsWith('Purchases/Payments')) return <SupplierPayments payments={supplierPayments} suppliers={suppliers} />;
         
         // Supply Chain Module
-        if (activeView.startsWith('Supplies/Materials') || activeView === 'Supplies') {
+        if (activeView.startsWith('Supplies/Materials')) {
             return <SupplyChainPage />;
+        }
+        if (activeView === 'Supplies') {
+            return <SupplyDashboardPage activeView={activeView} setActiveView={setActiveView} />;
         }
         if (activeView.startsWith('Supplies/Inventory')) {
             return <SupplyInventoryPage />;
         }
         if (activeView.startsWith('Supplies/Movements')) {
             return <SupplyMovementsPage activeView={activeView} setActiveView={setActiveView} />;
+        }
+        if (activeView.startsWith('Supplies/Orders')) {
+            return <SupplyOrdersPage activeView={activeView} setActiveView={setActiveView} />;
+        }
+        if (activeView.startsWith('Supplies/Suppliers')) {
+            return <SupplySuppliersPage activeView={activeView} setActiveView={setActiveView} />;
+        }
+        if (activeView.startsWith('Supplies/Distribution')) {
+            return <SupplyDistributionPage activeView={activeView} setActiveView={setActiveView} />;
         }
         
         // Inventory Module
