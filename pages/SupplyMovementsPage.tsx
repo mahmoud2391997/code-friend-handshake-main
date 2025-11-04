@@ -4,15 +4,15 @@ import * as XLSX from 'xlsx';
 import { AuthContext } from '../App';
 import { FilterIcon, PlusIcon, RefreshIcon } from '../components/Icon';
 import { useToasts } from '../components/Toast';
-import {
-  createSupplyMovement,
-} from '../src/store/slices/supplyMovementsSlice';
 import { fetchSupplyChainItems } from '../src/store/slices/supplyChainItemsSlice';
 import { fetchBranches } from '../src/store/slices/branchSlice';
 import { 
   fetchSupplyMovements as fetchSupplyMovementsAction,
   importSupplyMovements as importSupplyMovementsAction,
-  deleteSupplyMovement
+  deleteSupplyMovement,
+  createSupplyMovement,
+  createSupplyInMovement,
+  createSupplyOutMovement
 } from '../src/store/slices/supplyMovementsSlice';
 import type { RootState, AppDispatch } from '../src/store';
 import { SupplyMovement, Supply, Branch, Permission, Role, SupplyChainItem } from '../types';
@@ -46,11 +46,7 @@ const SupplyMovementsPage: React.FC<SupplyMovementsPageProps> = ({ activeView, s
   const inventoryError = useSelector((state: RootState) => state.supplyInventory.error);
 
   const supplies = useSelector((state: RootState) => state.supplyChainItems.items) as SupplyChainItem[];
-  const allBranches = useSelector((state: RootState) => state.branches.branches) as Branch[];
-  console.log(allBranches);
-  console.log(supplies);
-  
-  const branches = allBranches
+  const branches = useSelector((state: RootState) => state.branches.branches) as Branch[];
 
   const branchLoading = useSelector((state: RootState) => state.branches.loading);
   const branchError = useSelector((state: RootState) => state.branches.error);
@@ -64,7 +60,7 @@ const SupplyMovementsPage: React.FC<SupplyMovementsPageProps> = ({ activeView, s
   useEffect(() => {
     dispatch(fetchSupplyMovementsAction());
     dispatch(fetchSupplyChainItems({ page: 1, limit: 1000 }));
-    dispatch(fetchBranches({ page: 1, limit: 1000 }));
+    dispatch(fetchBranches({}));
   }, [dispatch]);
 
   const supplyLookup = useMemo(() => {
@@ -105,8 +101,10 @@ const SupplyMovementsPage: React.FC<SupplyMovementsPageProps> = ({ activeView, s
       })
       .map((m) => ({
         id: m._id as string,
-        supplyName: supplyLookup.get(String(m.supplyId || (m as any).productId)) ?? 'غير معروف',
-        branchName: branchLookup.get(String((m as any).toBranch || (m as any).branchId)) ?? 'غير معروف',
+        // استخدام اسم المنتج المخزن مباشرة في البيانات إذا كان متاحًا
+        supplyName: (m as any).productName || supplyLookup.get(String(m.supplyId || (m as any).productId)) || 'غير معروف',
+        // استخدام اسم الفرع المخزن مباشرة في البيانات إذا كان متاحًا
+        branchName: (m as any).branchName || branchLookup.get(String((m as any).toBranch || (m as any).branchId)) || 'غير معروف',
         type: (m.movementType || (m as any).type) as 'IN' | 'OUT',
         quantity: m.quantity,
         date: new Date(m.createdAt || (m as any).date).toLocaleDateString('ar-EG', {
@@ -145,38 +143,39 @@ const SupplyMovementsPage: React.FC<SupplyMovementsPageProps> = ({ activeView, s
       .catch((err) => addToast(err.message || 'فشل الحذف', 'error'));
   };
   
-  const handleSave = async (data: Omit<SupplyMovement, 'id' | 'date' | 'createdBy'>) => {
+  const handleSave = async (data: Omit<SupplyMovement, 'id' | 'date'>) => {
     try {
-      // Ensure supplyId is properly mapped from the form data
-      let movementData = { 
-        ...data, 
-        createdBy: user!.id,
-        // Map supplyId properly - if it's missing but productId exists, use that
-        supplyId: data.supplyId || (data as any).productId || (data as any).supplyId
-      };
-      
-      // Validate that we have a supply ID
-      if (!movementData.supplyId) {
+      // Validate required fields
+      if (!data.supplyId) {
         throw new Error('يجب تحديد المادة');
       }
-      
-      // Convert movementType to type for API compatibility
-      const apiData = {
-        ...movementData,
-        type: (movementData as any).type || (movementData as any).movementType || 'IN'
-      };
-      
-      // Remove movementType as API expects 'type'
-      delete (apiData as any).movementType;
-      
-      // Validate type is either IN or OUT
-      if (apiData.type !== 'IN' && apiData.type !== 'OUT') {
-        apiData.type = apiData.quantity > 0 ? 'IN' : 'OUT';
+      if (!data.branchId || data.branchId === 'undefined') {
+        throw new Error('يجب تحديد الفرع');
       }
       
-      await dispatch(createSupplyMovement(apiData)).unwrap();
+      // Prepare API data with required fields
+      const apiData = {
+        ...data,
+        date: new Date().toISOString(), // Add required date field
+        createdBy: user!.id
+      };
+      
+      // Convert type to IN/OUT for API compatibility
+      const movementType = apiData.type === 'TRANSFER' || apiData.type === 'ADJUSTMENT' ? 'IN' : apiData.type;
+      const finalData = { ...apiData, type: movementType };
+      
+      // Use the appropriate action based on movement type
+      if (movementType === 'IN') {
+        await dispatch(createSupplyInMovement(finalData)).unwrap();
+      } else {
+        await dispatch(createSupplyOutMovement(finalData)).unwrap();
+      }
+      
       addToast('تمت إضافة الحركة بنجاح', 'success');
       setModalOpen(false);
+      
+      // Refresh the movements list
+      dispatch(fetchSupplyMovementsAction());
     } catch (e: any) {
       addToast(e?.message ?? 'فشل في إضافة الحركة', 'error');
     }
@@ -314,11 +313,19 @@ const SupplyMovementsPage: React.FC<SupplyMovementsPageProps> = ({ activeView, s
           }}
         >
           <option value="">جميع الفروع</option>
-          {branches.map((b) => (
-              <option key={b._id || b.id} value={b._id || b.id}>
-                {b.name}
-              </option>
-            ))}
+          {branches && Array.isArray(branches) && branches.length > 0 ? (
+            branches.map((b, index) => {
+              const id = b._id || b.id;
+              const key = id && id !== 'undefined' ? id : `branch-${index}`;
+              return (
+                <option key={key} value={id}>
+                  {b.name}
+                </option>
+              );
+            })
+          ) : (
+            <option disabled>لا توجد فروع</option>
+          )}
         </select>
 
         <select
@@ -361,6 +368,12 @@ const SupplyMovementsPage: React.FC<SupplyMovementsPageProps> = ({ activeView, s
           {error}
         </div>
       )}
+      
+      {(!branches || !Array.isArray(branches) || branches.length === 0) && !branchLoading ? (
+        <div style={{ marginBottom: '1rem', color: '#f59e0b', fontWeight: 500 }}>
+          تحذير: لم يتم تحميل الفروع. يرجى التأكد من اتصال الخادم.
+        </div>
+      ) : null}
 
       {loading ? (
         <div style={{ textAlign: 'center', padding: '2rem', fontWeight: 600 }}>

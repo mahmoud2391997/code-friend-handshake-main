@@ -30,7 +30,8 @@ export const API_ENDPOINTS = {
   // SUPPLY_CHAIN_ITEMS: `/supplychains`,
    SUPPLY_CHAIN_ITEMS: `/supply-chain`,
   SUPPLY_CHAINS: `/supply-movements`,
-  SUPPLY_ORDERS: `/supplyorders`,
+  SUPPLY_ORDERS: `/supply-orders`,
+  SUPPLY_SUPPLIERS: `/supply-suppliers`,
   USERS: `/users`,
 } as const;
 

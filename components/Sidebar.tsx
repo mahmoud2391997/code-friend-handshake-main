@@ -406,10 +406,24 @@ const Sidebar: React.FC<SidebarProps> = ({
                 التوريدات
                 </button>
               </li>
-            
+              <li className="nav-submenu-item">
+                <button onClick={() => handleClick('Supplies/Distribution')} className={activeView === 'Supplies/Distribution' ? 'active' : ''}>
+                التوزيع للمستودعات
+                </button>
+              </li>
               <li className="nav-submenu-item">
                 <button onClick={() => handleClick('Supplies/Movements')} className={activeView === 'Supplies/Movements' ? 'active' : ''}>
-                التوزيع للمستودعات
+                حركات المواد
+                </button>
+              </li>
+              <li className="nav-submenu-item">
+                <button onClick={() => handleClick('Supplies/Orders')} className={activeView === 'Supplies/Orders' ? 'active' : ''}>
+                طلبات التوريد
+                </button>
+              </li>
+              <li className="nav-submenu-item">
+                <button onClick={() => handleClick('Supplies/Suppliers')} className={activeView === 'Supplies/Suppliers' ? 'active' : ''}>
+                موردي المواد
                 </button>
               </li>
             </ul>
